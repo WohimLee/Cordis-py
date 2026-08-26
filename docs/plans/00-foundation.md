@@ -1,6 +1,6 @@
 # Plan 00: Foundation Decisions
 
-Status: Not started
+Status: Complete
 
 ## Goal
 
@@ -29,14 +29,14 @@ Resolve implementation-shaping decisions and establish reproducible repository c
 
 ## Work packages
 
-- [ ] Inventory available Python/tooling constraints.
-- [ ] Decide minimum Python version and document consequences.
-- [ ] Decide lifecycle async contract and synchronous convenience boundary.
-- [ ] Decide dynamic `ctx.service` versus explicit `ctx.get()` contract.
-- [ ] Select build, environment, test, lint and type-check tools.
-- [ ] Accept or replace proposed ADRs.
-- [ ] Write canonical commands into `AGENTS.md` and README.
-- [ ] Define the first cross-language behavior fixture.
+- [x] Inventory available Python/tooling constraints.
+- [x] Decide minimum Python version and document consequences.
+- [x] Decide lifecycle async contract and synchronous convenience boundary.
+- [x] Decide dynamic `ctx.service` versus explicit `ctx.get()` contract.
+- [x] Select build, environment, test, lint and type-check tools.
+- [x] Accept or replace proposed ADRs.
+- [x] Write canonical commands into `AGENTS.md` and README.
+- [x] Define the first cross-language behavior fixture.
 
 ## Acceptance criteria
 
@@ -51,10 +51,22 @@ Resolve implementation-shaping decisions and establish reproducible repository c
 - Confirm build metadata produces an importable wheel.
 - Review all relative documentation links.
 
-## Open decisions
+## Resolved decisions
 
-- Python 3.11 versus 3.12 minimum;
-- uv/hatch/pdm/standard pip workflow;
-- pyright versus mypy;
-- Ruff formatting policy;
-- whether `Fiber.__await__` belongs in the first public API.
+- Python 3.11 minimum; Python 3.12 local development interpreter;
+- uv with hatchling;
+- Pyright strict mode;
+- Ruff linting and formatting;
+- async-first lifecycle;
+- dynamic and explicit Context service access;
+- no `Fiber.__await__` in the initial public API.
+
+## Completion evidence
+
+- `uv sync --dev` completed and produced `uv.lock`;
+- Ruff lint and format checks passed;
+- Pyright strict check passed;
+- pytest package smoke test passed;
+- source distribution and wheel build passed;
+- relative Markdown links and JSON scenario syntax passed;
+- first scenario: `tests/compat/scenarios/001-provider-replacement.json`.

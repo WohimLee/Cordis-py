@@ -59,7 +59,18 @@ Do not mark an item complete merely because code exists. Its acceptance criteria
 - Failure tests verify both the raised error and the final lifecycle/resource state.
 - Run focused tests first; run the full suite before completing a phase.
 
-The exact package, lint, type-check and test commands must be finalized in the first implementation plan before code is scaffolded. Once finalized, record them here.
+## Commands
+
+- Install/sync: `uv sync --dev`
+- Unit tests: `uv run pytest`
+- Focused tests: `uv run pytest <path> -k <pattern>`
+- Lint: `uv run ruff check .`
+- Format check: `uv run ruff format --check .`
+- Format: `uv run ruff format .`
+- Type check: `uv run pyright`
+- Package build: `uv build`
+
+The project supports Python 3.11 and newer; `.python-version` selects Python 3.12 for local development.
 
 ## Documentation rules
 

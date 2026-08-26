@@ -1,12 +1,12 @@
 # ADR 0002: Provide dynamic and explicit service access
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
 TypeScript Cordis uses a Proxy so `ctx.llm` performs scoped service resolution. Python can use `__getattr__`, but fully dynamic attributes are harder for static typing and may collide with Context members.
 
-## Proposed decision
+## Decision
 
 Provide both forms:
 
@@ -30,6 +30,6 @@ Dynamic access is ergonomic plugin syntax. Explicit access is the canonical fram
 - dynamic attributes only: concise but weak for tooling and internal clarity;
 - generated Context subclasses: strong typing but too rigid for dynamic plugins.
 
-## Acceptance condition
+## Follow-up
 
-Accept after Plan 00 prototypes type-checker behavior and defines collision errors.
+Plan 01 must prototype Pyright behavior, reserve Context member names and define collision errors before freezing the first public release.

@@ -74,6 +74,8 @@ HMR 分为配置更新和代码更新：
 - reload 期间服务依赖仍由 Fiber 状态机协调；
 - HMR 不得绕过 Effect 清理。
 
+Python 实现提供宿主驱动的 `ConfigReloader`，不在核心内创建 watcher、线程或轮询任务。宿主检测到配置文件变化后调用 `reload()`；适配器重新执行 compose，并通过 `Loader.update()` 的事务与回滚路径应用结果。模块代码重载由宿主负责刷新 import 状态，再显式调用 `Loader.replace()`，避免 Cordis 猜测进程级模块缓存策略。
+
 ## 安全边界
 
 - YAML/TOML 不执行任意 Python；

@@ -109,8 +109,8 @@ Exit criteria:
 
 | Phase | Status | Plan |
 | --- | --- | --- |
-| 0. Foundation decisions | Not started | [00-foundation.md](plans/00-foundation.md) |
-| 1. Semantic core | Not started | [01-semantic-core.md](plans/01-semantic-core.md) |
-| 2. Complete core | Not started | [02-complete-core.md](plans/02-complete-core.md) |
-| 3. Configuration runtime | Not started | [03-configuration-runtime.md](plans/03-configuration-runtime.md) |
-| 4. Harness compatibility | Not started | [04-harness-compatibility.md](plans/04-harness-compatibility.md) |
+| 0. Foundation decisions | Complete | [00-foundation.md](plans/00-foundation.md) |
+| 1. Semantic core | Complete | [01-semantic-core.md](plans/01-semantic-core.md) |
+| 2. Complete core | Complete | [02-complete-core.md](plans/02-complete-core.md) |
+| 3. Configuration runtime | Complete | [03-configuration-runtime.md](plans/03-configuration-runtime.md) |
+| 4. Harness compatibility | Complete | [04-harness-compatibility.md](plans/04-harness-compatibility.md) |

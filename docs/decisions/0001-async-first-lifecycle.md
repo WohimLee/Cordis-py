@@ -1,12 +1,12 @@
 # ADR 0001: Use an async-first lifecycle
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
 Plugin setup, Effect setup, disposer execution, dependent unload and task cancellation may be asynchronous. A synchronous core would either lose completion information or repeatedly create event loops.
 
-## Proposed decision
+## Decision
 
 Make lifecycle completion asynchronous:
 
@@ -28,6 +28,6 @@ Make lifecycle completion asynchronous:
 - Sync-first core with optional async helpers: simpler examples but ambiguous cleanup completion;
 - separate sync and async runtimes: duplicates state-machine logic and risks semantic drift.
 
-## Acceptance condition
+## Follow-up
 
-Accept after Plan 00 confirms the minimum Python version and demonstrates that synchronous plugin authoring remains ergonomic.
+Plan 01 must demonstrate that synchronous plugin authoring remains ergonomic while lifecycle completion stays awaitable.

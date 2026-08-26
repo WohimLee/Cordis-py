@@ -16,7 +16,7 @@ ctx.emit("event", value)
 result = ctx.bail("decision", request)
 result = await ctx.serial("decision", request)
 await ctx.parallel("notification", payload)
-result = await ctx.waterfall("pipeline", request, next=default_handler)
+result = await ctx.waterfall("pipeline", request, next_=default_handler)
 
 await fiber.update(new_config)
 await fiber.restart()
@@ -48,6 +48,8 @@ def greeter(ctx, config):
 ```
 
 插件返回 disposer 或在 Context 上注册 Effect。用户无需手工把 listener/service 加入清理列表。
+
+共享 Service 的注册方法通过 `self.caller_context` 创建调用方拥有的 Effect，确保 provider Fiber 卸载时自动撤销注册。
 
 ## API 分层
 

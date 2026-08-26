@@ -1,0 +1,19 @@
+{
+  "id": "harness-adapter-reload",
+  "purpose": "A provider Fiber replaces its lifecycle-owned LLM adapter without restarting the stable LLM service or Agent Loop.",
+  "typescript_evidence": [
+    "packages/llm/llm/tests/service.spec.ts: unregisters adapters when the owning fiber is disposed (HMR safety)",
+    "packages/llm/llm-deepseek/tests/adapter.spec.ts: registers the deepseek provider and unregisters on dispose (HMR safety)"
+  ],
+  "steps": [
+    {"action": "turn", "prompt": "hello"},
+    {"action": "update-provider", "prefix": "provider-b"},
+    {"action": "turn", "prompt": "again"},
+    {"action": "shutdown"}
+  ],
+  "expected": {
+    "answers": ["provider-a:HELLO", "provider-b:AGAIN"],
+    "agent_fiber_reused": true,
+    "shutdown": {"registry_size": 0, "services": 0, "root_effects": 0}
+  }
+}

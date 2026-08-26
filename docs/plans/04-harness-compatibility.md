@@ -1,6 +1,6 @@
 # Plan 04: DeepSeek Harness Compatibility
 
-Status: Not started
+Status: Complete
 
 ## Goal
 
@@ -28,13 +28,13 @@ Prove the runtime through representative DeepSeek Harness capability composition
 
 ## Work packages
 
-- [ ] Inventory runtime APIs used by selected Harness packages.
-- [ ] Define Python service protocols for representative seams.
-- [ ] Implement test providers and consumers.
-- [ ] Assemble a runnable profile without manual boot order.
-- [ ] Record provider replacement and shutdown sequences.
-- [ ] Compare observable behavior with TypeScript fixtures.
-- [ ] Publish compatibility matrix and intentional differences.
+- [x] Inventory runtime APIs used by selected Harness packages.
+- [x] Define Python service protocols for representative seams.
+- [x] Implement test providers and consumers.
+- [x] Assemble a runnable profile without manual boot order.
+- [x] Record provider replacement and shutdown sequences.
+- [x] Compare observable behavior with TypeScript fixtures.
+- [x] Publish compatibility matrix and intentional differences.
 
 ## Acceptance criteria
 
@@ -51,3 +51,11 @@ Prove the runtime through representative DeepSeek Harness capability composition
 - leak-free shutdown assertion;
 - compatibility scenario suite;
 - full project checks.
+
+## Completion evidence
+
+- A keyless YAML profile executes LLM/tools/sessions/agent-loop composition.
+- JSON scenarios record adapter HMR, service-loss cascade and leak-free shutdown.
+- Harness scenarios name their vendored TypeScript declaration or test evidence.
+- The compatibility matrix and provider tutorial document supported seams and limits.
+- Ruff, Ruff format, Pyright strict, pytest and package build pass.

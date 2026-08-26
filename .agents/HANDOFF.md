@@ -1,13 +1,14 @@
 # Handoff
 
-There is no interrupted implementation task.
+There is no interrupted implementation task. Plans 00 through 04 are complete.
 
-The project is intentionally paused before Plan 00. The next agent should:
+The planned roadmap is complete. The next agent should:
 
 1. Read root `AGENTS.md`;
 2. Read `docs/architecture/README.md`;
 3. Read `.agents/STATE.md`;
-4. Review `docs/plans/00-foundation.md`;
-5. Ask for or confirm the unresolved foundation decisions before scaffolding runtime code.
+4. Review `docs/compatibility.md`;
+5. Confirm any requested enhancement is outside or inside Cordis core;
+6. Preserve the keyless suite even if adding optional live-provider smoke tests.
 
-Do not infer that architecture examples are implemented. `docs/draft.md` is historical source material; numbered architecture chapters are authoritative.
+Core, Loader and a representative Harness-shaped profile are implemented with 57 passing tests. Full Harness business packages are intentionally not ported. `docs/draft.md` is historical source material; numbered architecture chapters are authoritative.

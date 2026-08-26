@@ -1,6 +1,6 @@
 # Plan 03: Configuration Runtime
 
-Status: Not started
+Status: Complete
 
 ## Goal
 
@@ -30,14 +30,14 @@ Build a safe declarative plugin-tree runtime without moving dependency schedulin
 
 ## Work packages
 
-- [ ] Define immutable parsed config and mutable runtime Entry models.
-- [ ] Implement safe module resolution and allow-list policy hooks.
-- [ ] Implement source-aware parsing and validation.
-- [ ] Implement include-cycle detection and overlays.
-- [ ] Mount Entry trees using only `ctx.plugin()`.
-- [ ] Implement diff-based update and rollback.
-- [ ] Add HMR behind an optional dependency/feature boundary.
-- [ ] Add security and failure-path tests.
+- [x] Define immutable parsed config and mutable runtime Entry models.
+- [x] Implement safe module resolution and allow-list policy hooks.
+- [x] Implement source-aware YAML/TOML parsing and validation.
+- [x] Implement include-cycle detection and overlays.
+- [x] Mount Entry trees using only `ctx.plugin()`.
+- [x] Implement diff-based update and rollback.
+- [x] Add host-driven config HMR without a watcher dependency.
+- [x] Add security and failure-path tests.
 
 ## Acceptance criteria
 
@@ -54,3 +54,10 @@ Build a safe declarative plugin-tree runtime without moving dependency schedulin
 - temporary-directory integration tests;
 - update/rollback/HMR lifecycle scenarios;
 - full project checks and packaged-resource smoke test.
+
+## Completion evidence
+
+- Parser, resolver, include, overlay, mount, rollback and reload tests pass.
+- YAML safe-loading rejects Python-specific constructors without execution.
+- Config reloads reuse normal Fiber update/replacement and Effect cleanup paths.
+- Ruff, Ruff format, Pyright strict, pytest and offline package build pass.

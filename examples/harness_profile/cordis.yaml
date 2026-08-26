@@ -1,0 +1,23 @@
+plugins:
+  # Deliberately listed before all providers: Fiber dependencies decide startup.
+  - id: agent-loop
+    module: examples.harness_profile.plugins:AgentLoop
+    config:
+      provider: mock
+  - id: mock-llm
+    module: examples.harness_profile.plugins:mock_llm_provider
+    config:
+      route: mock
+      prefix: provider-a
+  - id: uppercase
+    module: examples.harness_profile.plugins:uppercase_tool
+  - id: llm
+    module: examples.harness_profile.plugins:LlmRuntime
+  - id: tools
+    module: examples.harness_profile.plugins:ToolRuntime
+  - id: sessions
+    module: examples.harness_profile.plugins:SessionStore
+  - id: agents
+    module: examples.harness_profile.plugins:AgentRegistry
+  - id: system-prompt
+    module: examples.harness_profile.plugins:SystemPrompt

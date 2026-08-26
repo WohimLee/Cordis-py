@@ -1,6 +1,6 @@
 # Plan 01: Semantic Core
 
-Status: Not started
+Status: Complete
 
 ## Goal
 
@@ -35,16 +35,16 @@ Implement the smallest Python Cordis runtime that correctly owns resources and r
 
 ## Implementation order
 
-- [ ] Define errors, protocols and immutable records.
-- [ ] Implement idempotent sync/async disposal primitives.
-- [ ] Implement Effect collection, rollback and diagnostics metadata.
-- [ ] Implement Context derivation and root ownership.
-- [ ] Implement PluginSpec and PluginRuntime identity.
-- [ ] Implement service Implementation storage and isolation labels.
-- [ ] Implement Inject normalization and dependency notification.
-- [ ] Implement Fiber state machine and epoch transitions.
-- [ ] Implement event dispatch and Hook ownership.
-- [ ] Add end-to-end dependency cascade scenarios.
+- [x] Define errors, protocols and immutable records.
+- [x] Implement idempotent sync/async disposal primitives.
+- [x] Implement Effect collection, rollback and diagnostics metadata.
+- [x] Implement Context derivation and root ownership.
+- [x] Implement PluginSpec and PluginRuntime identity.
+- [x] Implement service Implementation storage and isolation labels.
+- [x] Implement Inject normalization and dependency notification.
+- [x] Implement Fiber state machine and epoch transitions.
+- [x] Implement event dispatch and Hook ownership.
+- [x] Add end-to-end dependency cascade scenarios.
 
 ## Acceptance criteria
 
@@ -68,3 +68,13 @@ Implement the smallest Python Cordis runtime that correctly owns resources and r
 ## Stop conditions
 
 Pause for a decision if implementation requires changing public lifecycle signatures, Python support, Effect cleanup ordering or service-access rules established by accepted ADRs.
+
+## Completion evidence
+
+- `uv run ruff check .`: passed;
+- `uv run ruff format --check .`: passed;
+- `uv run pyright`: passed with zero errors;
+- `uv run pytest`: 14 passed;
+- `uv build --offline`: source distribution and wheel passed;
+- provider replacement scenario is executed against `001-provider-replacement.json`;
+- focused coverage includes async Effect setup/close races, cleanup aggregation, dependency replacement, isolation, duplicate providers, five dispatch modes, once ownership and plugin listener cleanup.

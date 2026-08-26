@@ -1,0 +1,44 @@
+{
+  "id": "provider-replacement",
+  "purpose": "A consumer unloads when its provider disappears and activates with the replacement implementation.",
+  "plugins": {
+    "consumer": {
+      "inject": ["service"],
+      "effects": ["consumer-resource"]
+    },
+    "provider-a": {
+      "provides": ["service"]
+    },
+    "provider-b": {
+      "provides": ["service"]
+    }
+  },
+  "steps": [
+    {"action": "mount", "plugin": "consumer"},
+    {"action": "mount", "plugin": "provider-a"},
+    {"action": "dispose", "plugin": "provider-a"},
+    {"action": "mount", "plugin": "provider-b"},
+    {"action": "dispose-root"}
+  ],
+  "expected": [
+    {"plugin": "consumer", "state": "PENDING"},
+    {"plugin": "consumer", "state": "LOADING"},
+    {"plugin": "consumer", "event": "activate", "service_owner": "provider-a"},
+    {"plugin": "consumer", "state": "ACTIVE"},
+    {"plugin": "consumer", "state": "UNLOADING"},
+    {"plugin": "consumer", "event": "dispose-effect", "effect": "consumer-resource"},
+    {"plugin": "consumer", "state": "PENDING"},
+    {"plugin": "consumer", "state": "LOADING"},
+    {"plugin": "consumer", "event": "activate", "service_owner": "provider-b"},
+    {"plugin": "consumer", "state": "ACTIVE"},
+    {"plugin": "consumer", "state": "UNLOADING"},
+    {"plugin": "consumer", "event": "dispose-effect", "effect": "consumer-resource"},
+    {"plugin": "consumer", "state": "DISPOSED"}
+  ],
+  "invariants": [
+    "The consumer never activates without an available service implementation.",
+    "Each consumer activation owns a distinct consumer-resource effect.",
+    "Each consumer-resource effect is disposed exactly once.",
+    "The second activation uses a different dependency epoch from the first."
+  ]
+}

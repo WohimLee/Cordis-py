@@ -1,0 +1,21 @@
+{
+  "id": "harness-llm-service-loss",
+  "purpose": "Agent Loop unloads when the stable LLM service disappears and reactivates when a replacement service becomes available.",
+  "typescript_evidence": [
+    "packages/core/agent-loop/src/index.ts: AgentLoop.static inject includes llm",
+    "vendor/cordis/src/fiber.ts: injected service epoch refresh"
+  ],
+  "steps": [
+    {"action": "mount-agent-before-services"},
+    {"action": "dispose-service", "service": "llm"},
+    {"action": "mount-replacement-service", "service": "llm"}
+  ],
+  "expected_agent_states": [
+    "LOADING",
+    "ACTIVE",
+    "UNLOADING",
+    "PENDING",
+    "LOADING",
+    "ACTIVE"
+  ]
+}

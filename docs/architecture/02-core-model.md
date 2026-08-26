@@ -52,8 +52,10 @@ Service 可声明默认服务名、额外可用性检查、配置验证器和专
 ```python
 def plugin(ctx, config): ...
 
+
 class PluginClass:
     def __init__(self, ctx, config): ...
+
 
 class PluginObject:
     def apply(self, ctx, config): ...

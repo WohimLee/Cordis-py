@@ -1,6 +1,6 @@
 # Plan 02: Complete Core
 
-Status: Not started
+Status: Complete
 
 ## Goal
 
@@ -30,15 +30,15 @@ Complete the reflection, configuration, lifecycle diagnostics and logging behavi
 
 ## Work packages
 
-- [ ] Complete Reflect property model and ownership validation.
-- [ ] Implement Service convenience layer over Reflect.
-- [ ] Implement intercept resolution and validator adapters.
-- [ ] Implement update/restart with waterfall veto.
-- [ ] Implement internal events and their exception policies.
-- [ ] Implement Logger and lifecycle-owned exporters.
-- [ ] Expose side-effect-free runtime diagnostics.
-- [ ] Complete async setup/dispose/reload race matrix.
-- [ ] Expand cross-language behavior fixtures.
+- [x] Complete Reflect property model and ownership validation.
+- [x] Implement Service convenience layer over Reflect.
+- [x] Implement intercept resolution and validator adapters.
+- [x] Implement update/restart with waterfall veto.
+- [x] Implement internal events and their exception policies.
+- [x] Implement Logger and lifecycle-owned exporters.
+- [x] Expose side-effect-free runtime diagnostics.
+- [x] Complete async setup/dispose/reload race matrix.
+- [x] Expand behavior tests for update, failure and disposal.
 
 ## Acceptance criteria
 
@@ -55,3 +55,10 @@ Complete the reflection, configuration, lifecycle diagnostics and logging behavi
 - Complete core unit and race suites.
 - Cross-language scenarios for update, failure and disposal.
 - Full lint, type-check, test and package build.
+
+## Completion evidence
+
+- 29 tests cover the semantic core, reflection, config/update, internal events,
+  logging, effect rollback and lifecycle races.
+- Provider replacement continues to execute the language-neutral JSON scenario.
+- Ruff, Ruff format, Pyright strict, pytest and offline package build pass.
