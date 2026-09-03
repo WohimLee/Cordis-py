@@ -1,0 +1,491 @@
+# Step by Step：从零构建 Cordis Python Runtime
+
+本教程通过一步步实现一个可运行的 Python Runtime，彻底理解 Cordis 的核心机制，并最终复现 DeepSeek Harness vendored Cordis 运行栈的可移植概念、生命周期语义、公共接口和功能能力。目标范围不仅包括 `@deepseek-ai/cordis` 4.0.2 Core，还包括 Loader、Include、HMR 和 Timer 插件，并以一个最小 Harness 验证整套组件可以协同运行、稳定更新和完整退出。
+
+教程不是正式源码的逐行注释，也不是只展示 Cordis-py 的使用方法。我们会从一个只能挂载函数插件的最小 Runtime 出发，不断加入资源清理、服务反射、响应式依赖、生命周期状态机、事件系统和并发保护。每一步先面对一个真实问题，再把实现演化到 [`src/cordis`](../src/cordis) 当前采用的设计。
+
+## 教程目标
+
+完成教程后，读者应能够独立回答以下问题：
+
+- Context 为什么不是普通的依赖字典？
+- Plugin、PluginRuntime 和 Fiber 分别代表什么？
+- 为什么 consumer 可以先于 provider 挂载？
+- 服务消失后，为什么 consumer 会卸载，而不是直接失败？
+- 服务恢复后，Cordis 如何开始一个新的 activation epoch？
+- Effect 如何统一管理监听器、服务、子 Fiber、任务和用户资源？
+- 为什么 dispose 必须幂等、完整等待，并在部分清理失败后继续执行？
+- 如何避免旧 epoch 的异步 setup 在依赖变化后重新发布过期结果？
+- Context isolation、intercept 和 caller Context 如何协作？
+- 五种事件分发模式的同步、异步和 bail 语义有什么区别？
+- Cordis 的哪些 TypeScript 接口可以直接复现，哪些必须采用 Python 等价表达？
+
+最终目标不是写出“看起来像 Cordis”的代码，而是构建一个在可观察行为上与参考 Cordis 对等的 Python Runtime，并证明配置装载、文件组合、热更新和定时任务确实建立在同一套 Fiber/Effect 生命周期之上。
+
+## 兼容边界
+
+教程首先复现 DSH 仓库 `vendor/cordis/src` 中的 Cordis Core：
+
+- Context；
+- Registry 与 Inject；
+- Fiber 与 Effect；
+- Reflect 与 Service；
+- Events；
+- Logger；
+- 具有可移植运行时能力的公共 utilities。
+
+在 Core 完成后，继续复现 DSH vendored 的四个官方组件：
+
+| 组件 | DSH 参考版本 | 教程目标 |
+| --- | --- | --- |
+| Loader | `@deepseek-ai/cordis-plugin-loader` 1.0.0-rc.5 | 将声明式 Entry 树解析、挂载、更新和回滚到 Core 生命周期。 |
+| Include | `@deepseek-ai/cordis-plugin-include` 1.0.4 | 组合文件配置、处理相对路径和 patch，并保留来源信息。 |
+| Timer | `@deepseek-ai/cordis-plugin-timer` 1.1.2 | 提供随 Fiber 自动释放的 timeout、interval、sleep、throttle 和 debounce。 |
+| HMR | `@deepseek-ai/cordis-plugin-hmr` 1.0.15 | 监视配置和模块变化，经过 Loader 事务安全替换运行中的插件。 |
+
+DeepSeek Harness 的完整 LLM、Agent、Tools、Session 等业务实现仍不属于复现范围。教程最后只构建一个小型、无网络、无密钥的 Harness，用来验证 Cordis 运行栈，而不是复制 DSH 产品功能。
+
+Core 已有逐项对等证据；Loader、Include、HMR 和 Timer 必须分别完成新的 API inventory、语言差异表和双语言行为场景后，才能宣称对应组件等价。当前 Python Loader、include 展开和 host-driven reload 只能作为实现基础，不能直接视为四个 DSH 插件已经完整复现。
+
+对照版本、逐项接口分类和语言差异见 [`docs/cordis-core-compatibility.md`](../docs/cordis-core-compatibility.md)。
+
+## 教学方法
+
+### 1. 从问题推动实现
+
+每章先实现当前问题所需的最小代码。只有当测试或新需求暴露缺陷时，才引入下一层机制。例如，我们不会一开始就写完整 Fiber 状态机，而是先展示“直接执行插件”为什么无法正确处理依赖丢失和异步清理。
+
+### 2. 教学实现可以演进，正式实现保持唯一
+
+每个阶段保留独立、可运行的教学代码，使读者能看到设计如何变化。阶段之间允许少量代码重复，但这些重复只存在于 `Tutorial`。正式 Runtime 始终以 [`src/cordis`](../src/cordis) 为唯一实现，不为了迁就教程增加兼容层或重复机制。
+
+### 3. 先建立语义，再对照最终源码
+
+章节不会要求读者先理解最终实现。每章完成后才链接到正式源码，解释教学版本中哪些结构被保留、哪些因并发、类型或公共 API 要求而被强化。
+
+### 4. 测试是教程的一部分
+
+每一步都通过测试表达行为契约，而不只是验证示例可以运行。生命周期和竞态测试使用可控制的 `asyncio.Event` 或 `Future`，不依赖时间 sleep。
+
+### 5. 同时对照 TypeScript 和 Python
+
+涉及兼容性的章节会指出：
+
+- DSH Cordis 的原始概念和可观察行为；
+- Cordis-py 的 Python 表达；
+- 两者是否完全一致、能力等价或属于语言特有机制；
+- 对应的双语言场景或测试证据。
+
+## 核心教学主线
+
+整个教程围绕下面的闭环逐步展开：
+
+```text
+Context 定义作用域并提供插件 API
+    ↓
+Registry 规范化 Plugin，创建并记录 Fiber
+    ↓
+Reflect 按服务名称与 isolation label 解析 Inject
+    ↓
+Fiber 根据依赖快照决定是否激活
+    ↓
+Effect 拥有本次激活产生的所有长期资源
+    ↓
+服务变化产生新的 dependency epoch
+    ↓
+旧 epoch 完整卸载后，新 epoch 才能激活
+```
+
+Context 是入口，Fiber 是生命周期主体，Effect 是资源所有权机制，Reflect 是服务解析层，Registry 是插件身份与挂载记录，Events 和 Logger 则建立在相同的 Context/Fiber 所有权之上。
+
+## 章节规划
+
+### 第一阶段：最小生命周期闭环
+
+#### 00 — 为什么需要 Cordis
+
+- 从普通函数调用和依赖字典开始；
+- 展示插件顺序、资源泄漏和动态替换问题；
+- 定义 Context、Plugin、Fiber、Effect、Service 和 Epoch 的术语；
+- 明确整个教程要维持的生命周期不变量。
+
+#### 01 — 最小 Context
+
+- 构建根 Context；
+- 实现 `extend()` 和父子元数据继承；
+- 区分 root、parent 和派生作用域；
+- 暂时不实现动态服务访问。
+
+#### 02 — Effect 与可逆资源
+
+- 从普通 disposer 开始；
+- 统一同步和异步 setup；
+- 接受单个、嵌套和 iterable cleanup；
+- 实现逆序、幂等且完整等待的清理；
+- 解释 callable + awaitable Effect 的 Python 表达。
+
+#### 03 — 最小 Fiber
+
+- 使用 Fiber 表示一次插件挂载；
+- 引入最小生命周期状态；
+- 收集插件执行期间创建的 Effect；
+- 实现父子 Fiber 级联销毁；
+- 让 `await fiber` 等待稳定状态。
+
+阶段成果：可以挂载函数插件、注册资源并安全销毁，但还没有响应式依赖。
+
+### 第二阶段：响应式依赖系统
+
+#### 04 — Plugin 与 Registry
+
+- 规范化函数、类和 `{ apply }` 风格插件；
+- 区分 Plugin、PluginRuntime 和 Fiber；
+- 实现插件 identity、`get()`、`has()`、`delete()` 和遍历；
+- 支持同一 PluginRuntime 的多个 Fiber。
+
+#### 05 — Reflect 与服务实现
+
+- 按名称注册和查询服务；
+- 将服务实现绑定到提供者 Fiber；
+- 区分 strict 和 loose lookup；
+- 服务 disposer 如何触发依赖通知；
+- 为什么 Reflect 不是第二个依赖调度器。
+
+#### 06 — Inject 与延迟激活
+
+- 函数插件的静态 `.inject` 元数据；
+- 类和方法的 `@Inject`；
+- consumer 先注册、provider 后到达；
+- 依赖不完整时保持 PENDING；
+- 依赖完整时进入第一次 activation。
+
+#### 07 — Dependency Epoch
+
+- 用服务 implementation identity 构造依赖快照；
+- 服务丢失触发 consumer 卸载；
+- 服务恢复触发新的 epoch；
+- 防止同一 Fiber 同时运行两个 activation；
+- 区分暂时 PENDING 和永久 DISPOSED。
+
+#### 08 — Isolation 与 Intercept
+
+- 服务名称之外为什么还需要 isolation label；
+- `Context.isolate()` 的继承和共享标签；
+- Inject mapping 中的 intercept 配置；
+- 默认浅合并和 Service 自定义配置合并。
+
+阶段成果：得到 Cordis 最核心的“依赖驱动生命周期”，插件挂载顺序不再决定激活顺序。
+
+### 第三阶段：完整生命周期与并发正确性
+
+#### 09 — Fiber 状态机
+
+- PENDING、LOADING、ACTIVE、UNLOADING、FAILED、DISPOSED；
+- 合法状态转换和稳定状态；
+- `restart()`、`update()` 和永久 `dispose()`；
+- 配置验证的时机和失败状态；
+- 生命周期通知。
+
+#### 10 — 所有资源统一为 Effect
+
+- Context 注册监听器、服务和用户资源；
+- 子 Fiber、Service 初始化结果和插件返回值；
+- 一个 activation epoch 对应一棵 Effect 树；
+- Effect metadata 如何服务于诊断而不成为第二套机制。
+
+#### 11 — 异步竞态
+
+- setup 期间 dispose；
+- LOADING 时服务丢失；
+- UNLOADING 时服务恢复；
+- parent dispose 与 child creation 交错；
+- cleanup 部分失败后的最终状态；
+- 为什么用户 callback 不能在全局锁中执行。
+
+阶段成果：Runtime 不只在正常路径工作，也能在依赖变化、异步 setup 和失败清理中保持生命周期不变量。
+
+### 第四阶段：完整 Cordis Core 能力
+
+#### 12 — Events
+
+- listener 的 Effect 所有权；
+- `emit`、`bail`、`serial`、`parallel` 和 `waterfall`；
+- prepend、once 和 disposer；
+- dispatch Context、filter 和 global listener；
+- `internal/listener` 与 `internal/dispatch`。
+
+#### 13 — Service 抽象
+
+- Service 注册与 `provide`；
+- init cleanup；
+- caller Context tracking；
+- callable Service 和 `extend()`；
+- availability check；
+- accessor 与 mixin。
+
+#### 14 — Logger
+
+- Logger、LoggerService、Message 和 Exporter；
+- level 继承、格式化和缓冲；
+- Logger 与 Fiber 的关联；
+- 为什么学习调用链的 observer 位于 `cordis_observer`，而不是 Core Logger。
+
+#### 15 — 公共 API 与 Python 语言差异
+
+- 对齐 package-root exports；
+- `Fiber.await()` 与 `await fiber`/`fiber.wait()`；
+- `Context.is()` 与 `Context.is_context()`；
+- `global` 与 `global_`；
+- Proxy、Symbol、prototype、thenable 和 AggregateError 的 Python 等价表达；
+- 删除教学过程中的临时 API 和重复抽象。
+
+#### 16 — 与 DSH Cordis Core 行为对照
+
+- 运行共享 JSON 场景；
+- 对比 TypeScript 与 Python 的规范化结果；
+- 检查正常路径、失败路径和竞态路径；
+- 阅读完整兼容矩阵；
+- 从教学 Runtime 过渡到正式 [`src/cordis`](../src/cordis)。
+
+阶段成果：完成一个概念、语义、接口和能力上与 DSH Cordis Core 对等的 Python 实现，并能解释每一个重要设计选择的来源。
+
+### 第五阶段：完整 Cordis 运行栈
+
+#### 17 — Loader：从配置到插件树
+
+- 对照 DSH Loader 的 Entry、EntryGroup、EntryTree、Loader 和 ModuleLoader 契约；
+- 把声明式配置解析为稳定 identity 的 Entry 树；
+- 所有插件只通过 `Context.plugin()` 挂载，不建立第二套依赖排序；
+- 区分 config-only update 和 structural replacement；
+- 更新失败时回滚到上一棵有效运行树；
+- 对照当前 [`src/cordis/loader`](../src/cordis/loader) 并补齐差异。
+
+#### 18 — Include：组合配置来源
+
+- 展开 YAML、TOML 或其他受支持配置来源；
+- 正确解析嵌套 include 的相对路径；
+- 保留每个 Entry 的源文件归属和错误位置；
+- 支持 DSH Include 对应的 patch/overlay 行为；
+- 检测 include cycle，失败时不扰动当前 Runtime；
+- 使用跨文件场景验证组合顺序和更新传播。
+
+#### 19 — Timer：生命周期安全的时间能力
+
+- 实现 timeout、interval 和可取消 sleep；
+- 实现 throttle 与 debounce；
+- Timer 创建的 task 必须属于调用方 Fiber 的 Effect；
+- Fiber unload/dispose 后保证旧 callback 不再执行；
+- callback 失败、取消与重启具有明确契约；
+- 测试使用可控时钟或确定性同步点，避免易抖动的真实时间 sleep。
+
+#### 20 — HMR：安全替换运行中的插件
+
+- 复现 DSH HMR 与 Loader、Include、Timer 的依赖关系；
+- 监视配置文件和 Python 模块变化；
+- 使用 Timer debounce 合并短时间内的重复变更；
+- 配置变化优先走 Fiber update，结构或模块变化走 replacement；
+- 候选模块导入、激活或清理失败时保留或恢复上一版本；
+- 验证旧 epoch 的服务、监听器、task 和模块引用全部撤销。
+
+#### 21 — 最小 Harness：整栈毕业项目
+
+- 创建一个稳定的请求入口和可替换 provider；
+- 使用 Include 组合基础设施、provider 和 consumer 配置；
+- 由 Loader 挂载整棵插件树，不手工排序；
+- consumer 通过 Inject 等待 provider；
+- Timer 驱动周期性心跳或后台任务；
+- HMR 修改 provider 实现或配置，并验证请求不中断或按预期短暂进入 PENDING；
+- 注入无效更新，验证旧版本继续工作或事务回滚；
+- 恢复合法更新，验证新 epoch 激活且旧资源只清理一次；
+- 关闭根 Context，验证 Registry、服务、监听器、Timer task、watcher 和 Effect 全部归零。
+
+阶段成果：证明 Core、Loader、Include、Timer 和 HMR 不是孤立功能，而是一套能够启动、运行、更新、恢复和关闭的完整 Cordis Python 运行栈。
+
+## 目录约定
+
+计划中的目录结构如下：
+
+```text
+Tutorial/
+├── README.md
+├── 00-why-cordis/
+│   ├── README.md
+│   ├── runtime.py
+│   └── test_runtime.py
+├── 01-context/
+│   ├── README.md
+│   ├── runtime.py
+│   └── test_runtime.py
+├── ...
+├── 16-cordis-core-compatibility/
+├── 17-loader/
+├── 18-include/
+├── 19-timer/
+├── 20-hmr/
+└── 21-mini-harness/
+    ├── README.md
+    ├── config/
+    ├── plugins/
+    ├── run.py
+    └── test_harness.py
+```
+
+一般情况下，每章包含：
+
+- `README.md`：问题、推导过程、设计取舍和正式源码对照；
+- `runtime.py`：截至本章可以独立运行的教学实现；
+- `test_runtime.py`：本章新增的行为契约；
+- 必要时增加 `example.py`，展示对外使用方式。
+
+教学文件只依赖 Python 标准库和本项目已经使用的测试工具。除最终对照章节外，教学 Runtime 不直接导入 `src/cordis`，否则读者只能学习如何调用最终实现，而无法观察它如何建立。
+
+## 每章固定结构
+
+为了让教程真正可以 step by step 跟做，每章 README 采用相同结构：
+
+1. **本章目标**：完成后能够运行什么；
+2. **当前问题**：上一章的实现在哪里失效；
+3. **先写测试**：用行为描述目标，而不是绑定内部结构；
+4. **最小实现**：只添加解决当前问题所需的机制；
+5. **运行示例**：展示外部可观察结果；
+6. **为什么这样设计**：解释简单方案为何不足；
+7. **正式源码对照**：链接到 `src/cordis` 的对应实现；
+8. **DSH Cordis 对照**：说明 TypeScript 概念、Python 表达和兼容状态；
+9. **本章不解决什么**：明确下一步，而不是提前塞入完整系统；
+10. **检查理解**：提供可以自行推演或修改的练习。
+
+### 章节内部也必须 from scratch
+
+“Step by Step”不仅指章节之间有顺序，也约束每一章内部的写法。每章必须从上一章已经存在的代码，或本章明确展示的空白最小文件开始，逐步得到本章结果。不能先给出完整实现，再按模块解释它。
+
+每章正文至少包含下面的内部步骤：
+
+```text
+Step 0  运行上一章，确认起点
+Step 1  写一个会失败的新行为测试
+Step 2  增加最小数据结构或接口
+Step 3  实现最小成功路径
+Step 4  运行测试并观察新的边界问题
+Step 5  加入失败、清理或并发路径
+Step 6  重构重复代码，但不改变行为
+Step 7  运行本章全部测试
+Step 8  对照正式源码和 DSH Cordis
+```
+
+如果一章无法以这些小步清晰展开，说明章节范围过大，应拆成两个章节或若干明确的小节，而不是省略中间推导。
+
+每个 Step 都要说明四件事：
+
+1. 此时要解决的唯一问题；
+2. 相对上一步修改了哪些代码；
+3. 应该运行什么命令；
+4. 预期看到什么结果，以及该结果为什么引出下一步。
+
+代码展示优先使用短小的增量片段或 diff，并在关键 checkpoint 给出截至当前可以完整运行的文件。读者必须能够停在任意 checkpoint，运行代码并得到文档描述的结果。
+
+### 每章的 Checkpoint
+
+每章至少设置三个可运行检查点：
+
+- **起点**：上一章的能力仍然通过；
+- **中间点**：新测试按预期失败，证明问题真实存在；
+- **终点**：新旧测试全部通过，并明确列出仍未解决的限制。
+
+后续章节只能依赖上一章终点已经公开并测试过的能力，不能依赖尚未讲解的最终 `src/cordis` 内部机制。
+
+## 测试策略
+
+教程测试分成四层：
+
+- **最小行为测试**：证明本章新机制有效；
+- **生命周期测试**：验证资源所有权、状态和最终清理；
+- **确定性竞态测试**：使用 Event/Future 控制执行顺序；
+- **跨语言场景**：最终与 DSH Cordis 对比规范化输出。
+
+关键失败测试必须同时验证异常和最终资源状态。例如，cleanup 抛出异常时，不只检查异常类型，还要确认其他 disposer 已执行、Fiber 已进入终态、Registry 已移除记录。
+
+正式项目已有的 Core 对照 runner 位于 [`tests/compat`](../tests/compat)，可以在后半程作为参考和验收工具。扩展组件不能只依赖 Core 场景，需要为 Loader、Include、Timer 和 HMR 增加各自的参考 runner 或可规范化行为场景。
+
+## 与正式源码的关系
+
+教程中的简化不是另一套 Cordis 设计。每个阶段都应明确指出与正式源码的关系：
+
+| 教学概念 | 正式实现 |
+| --- | --- |
+| Context 与派生作用域 | [`src/cordis/context.py`](../src/cordis/context.py) |
+| Effect 与资源收集 | [`src/cordis/effect.py`](../src/cordis/effect.py) |
+| Fiber 状态机与 epoch | [`src/cordis/fiber.py`](../src/cordis/fiber.py) |
+| PluginRuntime 与 Registry | [`src/cordis/registry.py`](../src/cordis/registry.py) |
+| Inject 元数据 | [`src/cordis/model.py`](../src/cordis/model.py) |
+| 服务解析、隔离和 accessor | [`src/cordis/reflect.py`](../src/cordis/reflect.py) |
+| Service 调用方绑定 | [`src/cordis/service.py`](../src/cordis/service.py) |
+| 五种事件分发模式 | [`src/cordis/events.py`](../src/cordis/events.py) |
+| Logger 与 Exporter | [`src/cordis/logger.py`](../src/cordis/logger.py) |
+| 公共错误与配置验证 | [`src/cordis/errors.py`](../src/cordis/errors.py)、[`src/cordis/config.py`](../src/cordis/config.py) |
+| Loader、Include 与配置事务 | [`src/cordis/loader`](../src/cordis/loader) |
+| Timer | 待实现并与 DSH Timer 1.1.2 对照 |
+| HMR 文件监视与模块替换 | 当前只有 host-driven reload 基础，待按 DSH HMR 1.0.15 补齐 |
+
+正式源码是最终答案，但教程负责展示这个答案如何从约束和失败场景中一步步推导出来。
+
+## 编写原则
+
+- 每章只引入少量新概念，确保代码仍可完整理解；
+- 每章内部从零或从上一章 checkpoint 小步构建，禁止直接展示最终答案后倒序讲解；
+- 不把后续章节的复杂度提前泄漏到当前教学实现；
+- 不用伪代码代替关键生命周期逻辑；
+- 不通过 sleep 模拟并发正确性；
+- 不为了代码短而隐藏所有权、状态转换或错误传播；
+- 不逐行翻译 TypeScript，只复现可观察语义；
+- 公共命名尽可能沿用 Cordis；
+- Python 差异必须明确说明，而不是悄悄改变契约；
+- 每章结束时所有示例和测试都应可运行；
+- 最终章节必须能够解释兼容矩阵中的每一类结论。
+
+## 推荐学习方式
+
+读者可以按以下方式完成每章：
+
+1. 只阅读“当前问题”和测试，先自行设计；
+2. 在空白或上一章代码上实现目标；
+3. 运行测试并观察失败；
+4. 对照本章 `runtime.py`；
+5. 阅读正式源码中更完整的实现；
+6. 最后查看 DSH Cordis 对照和语言差异。
+
+不要只复制代码。教程真正要建立的是一套判断标准：任何新资源由谁拥有、什么时候发布、依赖变化时哪个 epoch 有效、失败后系统必须处于什么状态。
+
+## 实施顺序
+
+教程将按以下节奏推进：
+
+1. 先完成 00–03，验证 Context → Effect → Fiber 的最小闭环和章节模板；
+2. 再完成 04–08，把响应式依赖作为教程核心重点；
+3. 完成 09–11，用确定性竞态测试强化生命周期正确性；
+4. 完成 12–15，补齐 Cordis Core 的公共能力；
+5. 完成 16，对照 Core 的全部兼容证据并回归正式源码；
+6. 完成 17–20，分别复现并验收 Loader、Include、Timer 和 HMR；
+7. 最后完成 21，通过最小 Harness 执行整栈稳定性验收。
+
+第一阶段完成后应复审章节颗粒度。如果单章引入太多状态或超过一个核心问题，应拆分章节，而不是压缩解释。
+
+## 完成标准
+
+教程完成不以“所有目录都存在”为标准，而需要满足：
+
+- 每一章都能从上一章的问题自然推导出新增机制；
+- 每一章内部都有可执行的增量步骤、失败证据和至少三个 checkpoint；
+- 每一章的教学源码和测试可以独立运行；
+- 核心生命周期没有依赖未解释的魔法行为；
+- 关键并发场景具有确定性测试；
+- 所有正式 Core 模块都能从教程章节追溯其设计来源；
+- 所有 Python 语言差异都有理由和能力对应；
+- 最终教学 Runtime 的行为能够通过选定的 DSH Cordis Core 对照场景；
+- Loader、Include、Timer 和 HMR 各自具有来源固定的 API inventory 和行为证据；
+- 最小 Harness 能从多文件配置冷启动并处理真实的依赖无序挂载；
+- provider 配置或代码更新后，consumer 按依赖 epoch 正确卸载和恢复；
+- 无效配置、导入失败和激活失败不会破坏上一棵有效运行树；
+- 连续 HMR 和 Timer 活动期间不产生重复 listener、遗留 task 或重复 cleanup；
+- Harness 完整关闭后，Registry、Reflect implementations、Events hooks、Timer tasks、watchers 和根 Effect 全部清空；
+- 整栈测试能够重复运行，并包含启动、稳态、更新、故障、恢复和关闭六个阶段；
+- 读者完成教程后，可以不依赖现有实现重新设计一个语义正确、可配置、可热更新的 Cordis Python Runtime。
