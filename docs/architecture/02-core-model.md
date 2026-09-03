@@ -127,3 +127,106 @@ Parent Fiber
 ```
 
 销毁 Parent 会递归撤销整棵子树，插件不需要在全局维护资源 id。
+
+## 运行时拓扑
+
+Cordis Core 可以从九个关键概念理解：Plugin 定义行为，PluginRuntime 索引同一 Plugin 的所有挂载，Registry 创建 Fiber，Fiber 管理一次挂载的生命周期，Context 提供带作用域的能力视图，Reflect 解析 Service，Effect 管理可撤销资源，Events 负责通信，Logger 负责日志。Service 是 Plugin 通过稳定 Context 名称提供的能力。
+
+```text
+Application
+├── Root Context
+│   ├── RegistryService
+│   ├── ReflectService
+│   ├── EventsService
+│   └── LoggerService
+└── Root Fiber
+    ├── Plugin Fiber A
+    │   ├── Plugin Context A
+    │   ├── dependency snapshot
+    │   ├── Effects
+    │   │   ├── Service registration
+    │   │   ├── Event listener
+    │   │   └── user resource
+    │   └── Child Fiber B
+    │       ├── Plugin Context B
+    │       └── Effects
+    └── Plugin Fiber C
+        ├── Plugin Context C
+        └── Effects
+```
+
+Fiber 与 Context 表达两个相关但不同的结构：
+
+```text
+生命周期所有权                    Context 派生与作用域
+
+Root Fiber                       Root Context
+├── Fiber A                      ├── Plugin Context A
+│   └── Fiber B                  │   ├── isolated Context
+└── Fiber C                      │   └── Plugin Context B
+                                 └── Plugin Context C
+```
+
+Fiber 树决定谁负责卸载谁。Context 派生结构决定插件从哪个作用域解析服务以及继承哪些 metadata、isolation label 和 intercept 配置。两者不严格同构：每个 Fiber 有一个主要 Plugin Context，但 `extend()`、`isolate()` 和 `intercept()` 可以在不创建 Fiber 的情况下继续派生 Context；这些派生 Context 仍指向原 Fiber。只有再次调用 `ctx.plugin()` 才会创建 Child Fiber 及其主要 Plugin Context。
+
+关键引用关系如下：
+
+```text
+Fiber.ctx             ──▶ 该次挂载的主要 Plugin Context
+Context.fiber         ──▶ 当前 Context 所属的 Fiber
+Fiber.runtime         ──▶ 共享的 PluginRuntime
+PluginRuntime.fibers  ──▶ 同一 Plugin 的所有存活 Fiber
+Fiber effects         ──▶ 当前 activation 创建的长期资源
+Service Impl.fiber    ──▶ 提供该 Service 的 Fiber
+```
+
+Context 是能力视图，不拥有所解析的服务。Service implementation、Listener、Child Fiber 和用户资源最终都由 Fiber 的 Effect 机制管理。Child Fiber 没有独立于 Effect 的第二套清理路径；它的 disposer 是 Parent Fiber 拥有的 Effect，因而与其他资源一起按逆注册顺序清理。
+
+## 共享资源与局部资源
+
+| 层级 | 资源 | 生命周期与可见性 |
+| --- | --- | --- |
+| Application | Root Context、Root Fiber、Registry、Reflect、Events、Logger | 创建一次；派生 Context 使用绑定到调用方 Context 的 facade，共享同一 backing service。 |
+| Plugin identity | PluginRuntime | 同一 callback 一份，索引该 Plugin 的所有存活 Fiber，不拥有这些 Fiber。 |
+| Context | metadata、isolation label 映射、intercept 配置、当前 Fiber 引用 | 从父 Context 派生；改变能力视图，不复制 backing service。 |
+| Fiber | uid、配置、Inject、依赖实现快照、状态、activation epoch、Effect | 每次 `ctx.plugin()` 一份；由 Parent Fiber 管理。 |
+| Service scope | Service implementation | 存入共享 Reflect backing store，由服务名与 isolation label 选择，生命周期属于 Provider Fiber。 |
+| Effect | setup、一个或多个 disposer、诊断 metadata | 属于创建它的 Fiber；卸载时完整等待并逆序清理。 |
+
+“共享”不等于所有 Context 看到相同结果。Registry、Reflect、Events 和 Logger 的 backing service 由 Root Context 建立，但 facade 保留调用方 Context；Reflect 会依据当前 Context 的 isolation label 和 Fiber dependency snapshot 选择 Service implementation，Events 会依据 dispatch Context 过滤 Hook，Logger 会依据 Context intercept 解析名称和级别。
+
+## 树与图的组合
+
+Cordis 使用树表达所有权，使用图表达连接关系：
+
+```text
+树
+├── Fiber tree：插件与资源的生命周期所有权
+├── Context derivation：metadata、isolation 和 intercept 的继承
+└── Effect metadata tree：嵌套资源的诊断与逆序清理
+
+图
+├── PluginRuntime ──▶ Fiber：一个 Plugin identity 对应多个挂载
+├── Consumer Fiber ──▶ Service Impl：多对多依赖
+└── Event ──▶ Hook：多发布者、多订阅者通信
+```
+
+服务依赖图可以跨越 Fiber 树分支。一个 Provider Fiber 可以被多个 Consumer Fiber 依赖，一个 Consumer Fiber 也可以注入多个 Service。Reflect 中的实现变化会刷新受影响的 Consumer；Fiber 使用新的依赖实现集合建立 activation epoch，而不是由 Registry 预先生成固定拓扑顺序。
+
+## 主要运行路径
+
+```text
+ctx.plugin(plugin, config)
+    ↓
+Registry 规范化 Plugin，并获取或创建 PluginRuntime
+    ↓
+创建 Fiber 和主要 Plugin Context
+    ↓
+Reflect 检查 Inject 所需的 Service implementation
+    ↓
+依赖完整时，Fiber 运行 Plugin callback
+    ↓
+Service、Listener、Child Fiber 和用户资源进入 Effect 所有权
+```
+
+读取服务时，Context 把 `ctx.service_name` 交给 Reflect。Reflect 验证当前 Fiber 的 Inject 权限，按服务名和 isolation label 找到实现，并返回当前 activation snapshot 绑定的值。永久销毁 Fiber 时，Cordis 使 Fiber 停止激活，统一逆序清理 Effect，等待 Child Fiber、Service 注销、Listener 移除和用户 disposer 完成，最后进入 `DISPOSED`。

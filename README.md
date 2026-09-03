@@ -4,6 +4,22 @@ Cordis-py is a behavioral Python reproduction of the Cordis plugin runtime vendo
 
 The runtime core, declarative Loader and representative DeepSeek Harness composition are implemented: scoped Contexts, dependency-driven Fibers, lifecycle-owned Effects, safe YAML/TOML composition, transactional updates and a keyless LLM/tools/sessions/agent-loop profile. See the [architecture index](docs/architecture/README.md), [compatibility matrix](docs/compatibility.md), and [current state](.agents/STATE.md).
 
+## Core model
+
+```text
+Context receives a Plugin
+    ↓
+Registry normalizes it and creates a Fiber for this mount
+    ↓
+Reflect resolves the Fiber's injected Services in the current Context scope
+    ↓
+Fiber runs the Plugin when every dependency is available
+    ↓
+Effects own its Services, listeners, child Fibers and user resources
+```
+
+Plugin is reusable behavior, PluginRuntime is its shared Registry record, Fiber is one concrete mount, Context is that mount's scoped capability view, and Effect gives every long-lived resource a reversible owner. Fiber ownership forms a lifecycle tree; Context derivation forms a related scope structure; service dependencies and event subscriptions form graphs across those structures. See the [core object model](docs/architecture/02-core-model.md), [lifecycle design](docs/architecture/04-lifecycle.md), and [PluginRuntime tutorial](Tutorial/04-plugin-registry/02-plugin-runtime.md).
+
 ## Development
 
 Python 3.11 or newer is supported. The checked-in `.python-version` selects Python 3.12 for local development.

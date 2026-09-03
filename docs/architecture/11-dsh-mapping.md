@@ -21,6 +21,61 @@ Web UI ─────────── drives ctx.agents
 
 替换 LLM provider 时，旧服务撤销使依赖者卸载；新服务注册后依赖者重新激活。Agent loop 不需要知道 provider 是 DeepSeek、OpenAI 还是本地模型。
 
+## 同一 Plugin 的多个 Fiber
+
+DSH 的 `@deepseek-ai/dsh-tool-subagent` 展示了多次挂载同一 Plugin 的实际需求。基础 Bundle 用同一实现注册两个模型工具：
+
+```text
+tool-subagent PluginRuntime
+├── Fiber: spawn route
+│   ├── provider = spawn
+│   ├── toolName = subagent
+│   ├── backgroundMode = continuable
+│   └── Effect: register tools["subagent"]
+└── Fiber: fork route
+    ├── provider = fork
+    ├── toolName = subagent_fork
+    ├── backgroundMode = one-shot
+    └── Effect: register tools["subagent_fork"]
+```
+
+`subagent` 创建可继续交互的新子代理，`subagent_fork` 从父代理已有历史分叉。两者共享 `tool-subagent` callback 和 PluginRuntime，但各自拥有配置、Plugin Context、dependency snapshot 和 Effect；卸载其中一个 Fiber 只撤销它注册的工具。Agent Preset 可以独立调整路由策略，例如把 fork 配置为 continuable，而不复制 Plugin 实现。参考 DSH `packages/bundle/base/cordis.patch.yml` 和 `packages/preset/agent-presets/presets/standard/agent.cordis.yml`。
+
+命名的外部子代理 Provider 是另一类多实例需求。DSH 的组合测试会多次挂载 `@deepseek-ai/dsh-subagent-codex` 或 `@deepseek-ai/dsh-subagent-claude-code`，为同一种 Provider 实现分配不同名称和模型：
+
+```text
+subagent-codex PluginRuntime
+├── Fiber
+│   ├── providerName = codex-primary
+│   └── model = codex-primary-model
+└── Fiber
+    ├── providerName = codex-secondary
+    └── model = codex-secondary-model
+
+subagent-claude-code PluginRuntime
+├── Fiber: claude-primary
+└── Fiber: claude-secondary
+```
+
+独立的 `tool-subagent` Fiber 再把这些 Provider 暴露成 `subagent_codex_primary`、`subagent_codex_secondary`、`subagent_claude_primary` 和 `subagent_claude_secondary`。这种组合让应用复用 Provider 和工具实现，同时按名称选择不同模型、外部进程或策略。参考 DSH `packages/subagent/subagent-codex/tests/fixtures/loader/codex.patch.yml`、`packages/subagent/subagent-claude-code/tests/fixtures/loader/claude-code.patch.yml` 和 `snapshots/session/product-subagent-both/cordis.yml`。
+
+配置中多次出现同一模块不保证运行时存在多个 Fiber。DSH 的 minimal profile 为 `@deepseek-ai/dsh-terminal-bash` 写入 Bash 和 PowerShell 两个条目，但用互斥的 `disabled` 表达式按平台选择：
+
+```text
+非 Windows  ──▶ Bash 条目 active，PowerShell 条目 disabled
+Windows     ──▶ Bash 条目 disabled，PowerShell 条目 active
+```
+
+因此需要区分三个数量：
+
+```text
+配置条目数       Loader 读到的声明数量
+存活 Fiber 数    当前实际挂载且尚未 dispose 的实例数量
+PluginRuntime 数 Registry 按 Plugin callback 建立的共享记录数量
+```
+
+再次执行 `ctx.plugin(same_plugin, config)` 创建新 Fiber；`restart()`、`update()` 或 Inject 丢失后恢复只让原 Fiber 进入新的 activation epoch。多个 Fiber 若在同一 isolation scope 注册同名 Service 或同名 Tool，仍会触发对应 Registry 的重复注册规则；可共存的配置必须使用不同名称或不同 isolation scope。
+
 ## Python 复现层级
 
 ```text
