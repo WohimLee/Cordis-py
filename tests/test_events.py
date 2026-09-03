@@ -123,3 +123,91 @@ async def test_once_listener_runs_only_once_for_immediate_emits() -> None:
 
     assert seen == [True]
     await context.aclose()
+
+
+@pytest.mark.asyncio
+async def test_listener_disposers_are_idempotent_and_remove_the_hook() -> None:
+    context = Context()
+    called: list[bool] = []
+    dispose = context.on("event", lambda: called.append(True))
+    dispose_once = context.once("once", lambda: None)
+
+    assert dispose() is None
+    assert dispose() is None
+    context.emit("event")
+    context.emit("once")
+    assert dispose_once() is None
+    assert called == []
+    await context.aclose()
+
+
+@pytest.mark.asyncio
+async def test_internal_listener_can_replace_normal_registration() -> None:
+    context = Context()
+    intercepted: list[object] = []
+    replacement_active = True
+
+    def intercept(
+        name: object,
+        _listener: Callable[..., object],
+        options: dict[str, bool],
+    ) -> object:
+        if name != "special":
+            return None
+        intercepted.append(options)
+
+        def dispose() -> bool:
+            nonlocal replacement_active
+            previous, replacement_active = replacement_active, False
+            return previous
+
+        return dispose
+
+    context.on("internal/listener", intercept)
+    called: list[bool] = []
+    dispose = context.on("special", lambda: called.append(True), True)
+    context.emit("special")
+
+    assert called == []
+    assert intercepted == [{"prepend": True, "global": False}]
+    assert dispose() is True
+    assert dispose() is False
+    await context.aclose()
+
+
+@pytest.mark.asyncio
+async def test_emit_schedules_awaitable_listener_and_supports_object_event_keys() -> None:
+    context = Context()
+    event = object()
+    completed = asyncio.Event()
+
+    async def listener() -> None:
+        await asyncio.sleep(0)
+        completed.set()
+
+    context.on(event, listener)
+    context.emit(event)
+    assert not completed.is_set()
+    await completed.wait()
+    await context.aclose()
+
+
+@pytest.mark.asyncio
+async def test_dispatch_context_filters_local_hooks_but_not_global_hooks() -> None:
+    context = Context()
+    allowed = context.extend()
+    blocked = context.extend()
+
+    def filter_owner(owner: Context) -> bool:
+        return owner is allowed
+
+    dispatch_context = context.extend({Context.filter: filter_owner})
+    seen: list[str] = []
+
+    allowed.on("filtered", lambda: seen.append("allowed"))
+    blocked.on("filtered", lambda: seen.append("blocked"))
+    blocked.on("filtered", lambda: seen.append("global"), {"global": True})
+    context.emit(dispatch_context, "filtered")
+
+    assert seen == ["allowed", "global"]
+    await context.aclose()

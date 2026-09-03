@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, TypeAlias, cast
+from typing import Any, TypeAlias, TypeVar, cast
 
 Plugin: TypeAlias = object
-Inject: TypeAlias = list[str] | tuple[str, ...] | Mapping[str, object | None]
+InjectSpec: TypeAlias = list[str] | tuple[str, ...] | Mapping[str, object | None]
+METHOD_INJECT = "__cordis_method_inject__"
+Decorated = TypeVar("Decorated")
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,13 +39,27 @@ def normalize_inject(value: object) -> dict[str, object | None]:
     raise TypeError("plugin inject must be a string sequence or mapping")
 
 
-def inject(*names: str, **configs: object) -> Callable[[Any], Any]:
-    """Declare service dependencies on a plugin."""
+class Inject:
+    """Cordis-compatible dependency decorator for classes and methods."""
 
-    dependencies = {name: None for name in names} | configs
+    def __init__(self, name: str, config: object = None) -> None:
+        self.name = name
+        self.config = config
 
-    def decorate(plugin: Any) -> Any:
-        plugin.inject = dependencies
-        return plugin
+    def __call__(self, value: Decorated) -> Decorated:
+        target = cast(Any, value)
+        attribute = "inject" if isinstance(value, type) else METHOD_INJECT
+        inherited = normalize_inject(getattr(target, attribute, None))
+        setattr(target, attribute, inherited | {self.name: self.config})
+        return value
 
-    return decorate
+    @staticmethod
+    def resolve(
+        value: object,
+        result: dict[str, object | None] | None = None,
+    ) -> dict[str, object | None]:
+        """Normalize dependency metadata into a mutable mapping."""
+
+        resolved = {} if result is None else result
+        resolved.update(normalize_inject(value))
+        return resolved

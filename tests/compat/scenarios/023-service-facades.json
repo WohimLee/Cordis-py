@@ -1,0 +1,10 @@
+{
+  "id": "service-facades",
+  "expected": {
+    "value": 7,
+    "registered": true,
+    "trace": ["plugin", "event"],
+    "message": ["facade", ["logged"]],
+    "contexts": [true, true, true, true]
+  }
+}

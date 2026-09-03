@@ -1,0 +1,14 @@
+{
+  "id": "fiber-invalid-update",
+  "expected": {
+    "active_failed_immediately": true,
+    "active_error": "invalid config:\n  - positive",
+    "active_raw": 0,
+    "active_config": 1,
+    "active_state": "ACTIVE",
+    "pending_failed_immediately": false,
+    "pending_raw": 0,
+    "pending_failed_on_activation": true,
+    "pending_state": "FAILED"
+  }
+}

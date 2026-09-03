@@ -1,0 +1,7 @@
+{
+  "id": "inject-config",
+  "expected": {
+    "seen": [{"base": 1, "shared": "inject", "middle": 2, "head": 3}],
+    "state": "ACTIVE"
+  }
+}

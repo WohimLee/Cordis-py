@@ -43,10 +43,9 @@ async def test_invalid_generator_result_rolls_back_collected_cleanup() -> None:
         yield lambda: cleaned.append(True)
         yield "invalid"
 
-    with pytest.raises(CordisError) as caught:
+    with pytest.raises(TypeError, match="Invalid effect"):
         await scope.install(cast(EffectSetup, setup))
 
-    assert caught.value.code == CordisErrorCode.INVALID_EFFECT
     assert cleaned == [True]
     assert scope.effects == ()
 
@@ -80,6 +79,50 @@ async def test_closed_scope_rejects_new_effects() -> None:
 
 
 @pytest.mark.asyncio
+async def test_effect_is_an_awaitable_callable_single_shot_disposer() -> None:
+    order: list[str] = []
+    scope = EffectScope()
+    effect = scope.install_sync(
+        lambda: [lambda: order.append("first"), lambda: order.append("second")]
+    )
+
+    disposer = await effect
+    assert disposer is effect
+    first = effect()
+    second = effect()
+    assert first is second
+    await first
+
+    assert order == ["second", "first"]
+    await scope.close()
+
+
+@pytest.mark.asyncio
+async def test_context_effect_accepts_async_setup_and_disposal_waits_for_it() -> None:
+    from cordis import Context
+
+    context = Context()
+    setup_started = asyncio.Event()
+    allow_setup = asyncio.Event()
+    cleaned = asyncio.Event()
+
+    async def setup() -> Cleanup:
+        setup_started.set()
+        await allow_setup.wait()
+        return cleaned.set
+
+    effect = context.effect(setup)
+    await setup_started.wait()
+    disposal = effect()
+    assert not disposal.done()
+    allow_setup.set()
+    await disposal
+
+    assert cleaned.is_set()
+    await context.aclose()
+
+
+@pytest.mark.asyncio
 async def test_scope_close_waits_for_in_flight_async_setup_and_cleans_result() -> None:
     setup_started = asyncio.Event()
     allow_setup = asyncio.Event()
@@ -109,13 +152,16 @@ async def test_scope_close_waits_for_in_flight_async_setup_and_cleans_result() -
 @pytest.mark.asyncio
 async def test_nested_effects_form_a_diagnostic_tree() -> None:
     scope = EffectScope()
+    cleaned: list[bool] = []
 
     async def outer() -> None:
-        await scope.install(lambda: None, "child")
+        await scope.install(lambda: lambda: cleaned.append(True), "child")
 
-    await scope.install(outer, "parent")
+    parent = await scope.install(outer, "parent")
 
     assert len(scope.effects) == 1
     assert scope.effects[0].label == "parent"
     assert [child.label for child in scope.effects[0].children] == ["child"]
+    await parent.dispose()
+    assert cleaned == [True]
     await scope.close()

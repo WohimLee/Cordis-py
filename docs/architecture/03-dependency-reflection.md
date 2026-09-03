@@ -11,7 +11,7 @@ inject = {
 }
 ```
 
-列表只声明依赖；映射值同时作为对应服务的 intercept 配置。`@inject(...)` 装饰器只写元数据，行为由 Registry 和 Fiber 实现。
+列表只声明依赖；映射值同时作为对应服务的 intercept 配置。函数插件使用静态 `inject` 元数据；`@Inject(...)` 为类和方法写入相同元数据。行为统一由 Registry 和 Fiber 实现。
 
 ## 服务实现记录
 

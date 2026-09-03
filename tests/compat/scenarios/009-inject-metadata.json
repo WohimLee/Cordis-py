@@ -1,0 +1,16 @@
+{
+  "id": "inject-metadata",
+  "purpose": "Compare inherited class Inject metadata and method-level dependency Fibers.",
+  "expected": {
+    "before_services": "PENDING",
+    "after_inherited_only": "PENDING",
+    "after_class_dependencies": "ACTIVE",
+    "trace": [
+      "construct:A:C",
+      "method:B1",
+      "method-cleanup:B1",
+      "method:B2",
+      "method-cleanup:B2"
+    ]
+  }
+}

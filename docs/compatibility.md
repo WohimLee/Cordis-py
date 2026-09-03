@@ -46,14 +46,16 @@ A provider injects the stable service and registers a Fiber-owned implementation
 ```python
 from typing import cast
 
-from cordis import Context, inject
+from cordis import Context
 from examples.harness_profile.plugins import LlmRuntime
 
 
-@inject("llm")
 def my_provider(ctx: Context, config: object) -> None:
     llm = cast(LlmRuntime, ctx.llm)
     llm.register_adapter("my-route", lambda prompt: f"answer:{prompt}")
+
+
+my_provider.inject = ["llm"]
 ```
 
 Configure it independently of its consumers:

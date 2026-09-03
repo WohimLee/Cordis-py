@@ -1,0 +1,8 @@
+{
+  "id": "logger-options",
+  "expected": {
+    "meta": ["override", "custom", 0, "value"],
+    "default_name": "camel-case",
+    "codes": [2, 21]
+  }
+}

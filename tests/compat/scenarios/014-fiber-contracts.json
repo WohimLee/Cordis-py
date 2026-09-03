@@ -1,0 +1,33 @@
+{
+  "id": "fiber-contracts",
+  "expected": {
+    "initial_uid_positive": true,
+    "initial": {
+      "name": "plugin",
+      "ctx_same": true,
+      "raw_config": "one",
+      "config": "one",
+      "store_size": 0,
+      "inertia": false
+    },
+    "restart_result": null,
+    "update_result": null,
+    "trace": ["activate:one", "cleanup:one", "activate:one", "cleanup:one", "activate:two", "cleanup:two"],
+    "states": [
+      ["PENDING", "LOADING"],
+      ["LOADING", "ACTIVE"],
+      ["ACTIVE", "UNLOADING"],
+      ["UNLOADING", "LOADING"],
+      ["LOADING", "ACTIVE"],
+      ["ACTIVE", "UNLOADING"],
+      ["UNLOADING", "LOADING"],
+      ["LOADING", "ACTIVE"],
+      ["ACTIVE", "UNLOADING"],
+      ["UNLOADING", "DISPOSED"]
+    ],
+    "disposed_uid": null,
+    "disposed_state": "DISPOSED",
+    "disposed_store": null,
+    "inactive_error": "INACTIVE_EFFECT"
+  }
+}

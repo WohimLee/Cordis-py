@@ -1,0 +1,12 @@
+{
+  "id": "context-filter",
+  "expected": {
+    "root_is_context": true,
+    "child_is_context": true,
+    "plain_is_context": false,
+    "root_base_url": "file:///root/",
+    "child_base_url": "file:///root/",
+    "seen": ["allowed", "global"],
+    "dispatch_context_seen": true
+  }
+}

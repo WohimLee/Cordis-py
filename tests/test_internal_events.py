@@ -8,7 +8,7 @@ from cordis import Context, Fiber, FiberState
 @pytest.mark.asyncio
 async def test_plugin_status_and_dispatch_events_are_observable() -> None:
     context = Context()
-    plugins: list[int] = []
+    plugins: list[int | None] = []
     statuses: list[tuple[FiberState, FiberState]] = []
     dispatches: list[tuple[object, ...]] = []
 
@@ -18,8 +18,13 @@ async def test_plugin_status_and_dispatch_events_are_observable() -> None:
     def observe_status(fiber: Fiber, old: FiberState) -> None:
         statuses.append((old, fiber.state))
 
-    def observe_dispatch(mode: object, name: object, args: tuple[object, ...]) -> None:
-        dispatches.append((mode, name, args))
+    def observe_dispatch(
+        mode: object,
+        name: object,
+        args: tuple[object, ...],
+        dispatch_context: Context | None,
+    ) -> None:
+        dispatches.append((mode, name, args, dispatch_context))
 
     context.on("internal/plugin", observe_plugin)
     context.on("internal/status", observe_status)
@@ -29,14 +34,16 @@ async def test_plugin_status_and_dispatch_events_are_observable() -> None:
         plugin_context.on("public", lambda: None)
 
     fiber = context.plugin(plugin)
+    uid = fiber.uid
     await fiber.wait()
     context.emit("public")
     await fiber.dispose()
 
-    assert plugins == [fiber.uid, fiber.uid]
+    assert plugins == [uid, None]
+    assert fiber.uid is None
     assert (FiberState.PENDING, FiberState.LOADING) in statuses
     assert (FiberState.LOADING, FiberState.ACTIVE) in statuses
-    assert dispatches == [("emit", "public", ())]
+    assert dispatches == [("emit", "public", (), None)]
     await context.aclose()
 
 
@@ -72,8 +79,10 @@ async def test_internal_get_and_set_are_synchronous_waterfalls() -> None:
     def override_get(
         receiver: object,
         name: object,
+        error: BaseException,
         next_: Callable[[], object],
     ) -> object:
+        assert str(error) == 'cannot get property "value" without inject'
         if name == "value":
             return 10
         return next_()

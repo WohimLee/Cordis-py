@@ -1,0 +1,22 @@
+{
+  "id": "context-registry",
+  "purpose": "Compare Context metadata inheritance and the portable Registry inspection surface.",
+  "expected": {
+    "child_marker": "child",
+    "parent_marker": null,
+    "missing_strict": null,
+    "missing_loose": null,
+    "trace": ["child"],
+    "registry": {
+      "size": 1,
+      "has": true,
+      "keys": 1,
+      "values": 1,
+      "entries": 1,
+      "visited": 1,
+      "runtime": ["probe", true, true]
+    },
+    "service_contexts": [true, true, true, true],
+    "registry_size_after": 0
+  }
+}

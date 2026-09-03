@@ -1,6 +1,6 @@
 # ADR 0003: Target behavioral compatibility
 
-Status: Accepted
+Status: Superseded by [ADR 0005](0005-cordis-core-equivalence.md)
 
 ## Context
 

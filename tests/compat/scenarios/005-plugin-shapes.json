@@ -1,0 +1,10 @@
+{
+  "id": "plugin-shapes",
+  "purpose": "Compare function, constructor and object-apply plugin normalization, activation and registry cleanup.",
+  "expected": {
+    "activated": ["class:class", "function:function", "object:object"],
+    "cleaned": ["function", "object"],
+    "registry_size_before": 3,
+    "registry_size_after": 0
+  }
+}

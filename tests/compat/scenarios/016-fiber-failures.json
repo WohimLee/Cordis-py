@@ -1,0 +1,13 @@
+{
+  "id": "fiber-failures",
+  "expected": {
+    "startup_failed": true,
+    "failed_state": "FAILED",
+    "recovered_state": "ACTIVE",
+    "trace": ["activate:fail", "cleanup:fail", "activate:ok"],
+    "cleanup_called": true,
+    "cleanup_final_state": "DISPOSED",
+    "cleanup_final_uid": null,
+    "cleanup_removed": true
+  }
+}

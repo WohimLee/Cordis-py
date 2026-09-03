@@ -13,6 +13,17 @@ log.info("loaded %s", name)
 
 Exporter 是生命周期注册项，必须通过 Effect 安装和撤销。Console、JSON、文件或远程日志均是独立 Exporter，不写死在核心 Logger 中。
 
+`cordis` 只保留上游 Cordis 定义的 Logger、Message、格式化和 Exporter 生命周期契约。用于本项目开发者观察调用链的内存采集器不属于 Cordis API，放在独立的 `cordis_observer` 包中：
+
+```python
+from cordis_observer import MemoryExporter
+
+exporter = MemoryExporter()
+ctx.exporter(exporter)
+```
+
+这种拆分避免把本地学习和诊断用途误认为上游 Cordis 能力，也不复制日志分发或格式化机制。
+
 ## 生命周期诊断
 
 核心提供只读诊断：
@@ -20,7 +31,7 @@ Exporter 是生命周期注册项，必须通过 Effect 安装和撤销。Consol
 - `registry.runtimes()`；
 - `runtime.fibers`；
 - `fiber.state`、`fiber.error` 和依赖快照；
-- `fiber.get_effects()` 的 label/children 树；
+- `fiber.getEffects()` 的 label/children 树；
 - `reflect.implementations()`；
 - 生命周期、服务变化和事件 dispatch trace。
 

@@ -18,6 +18,13 @@ class CordisErrorCode(StrEnum):
 class CordisError(RuntimeError):
     """Framework error carrying a stable code."""
 
+    Code = CordisErrorCode
+
     def __init__(self, code: CordisErrorCode, message: str | None = None) -> None:
         self.code = code
-        super().__init__(message or code.value)
+        default = (
+            "cannot create effect on inactive context"
+            if code is CordisErrorCode.INACTIVE_EFFECT
+            else code.value
+        )
+        super().__init__(message or default)

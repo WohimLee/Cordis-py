@@ -1,0 +1,14 @@
+{
+  "id": "logger-contracts",
+  "expected": {
+    "levels": [0, 1, 2, 3],
+    "messages": [
+      {"sn": 1, "name": "scope", "type": "debug", "level": 3, "args": ["debug"], "fiber": true},
+      {"sn": 2, "name": "scope", "type": "info", "level": 1, "args": ["hello %s", "world"], "fiber": true},
+      {"sn": 3, "name": "scope", "type": "warn", "level": 2, "args": ["warn"], "fiber": true},
+      {"sn": 4, "name": "scope", "type": "error", "level": 0, "args": ["error"], "fiber": true}
+    ],
+    "formatted": "abcde...\nok <z...",
+    "buffer": [["two"], ["three"]]
+  }
+}

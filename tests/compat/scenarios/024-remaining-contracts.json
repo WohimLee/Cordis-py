@@ -1,0 +1,8 @@
+{
+  "id": "remaining-contracts",
+  "expected": {
+    "availability": ["PENDING", "ACTIVE", 2],
+    "registry": [2, true, false],
+    "await_returns_fiber": true
+  }
+}

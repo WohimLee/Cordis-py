@@ -6,19 +6,21 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING
 
 from .effect import Effect, EffectSetup
-from .events import Listener
-from .model import Plugin
+from .events import EventOptions, Listener, ListenerDisposer
+from .model import InjectSpec, Plugin
 
 if TYPE_CHECKING:
-    from .events import EventsService
+    from .events import EventsServiceView
     from .fiber import Fiber, RootFiber
-    from .logger import Exporter, LoggerService
-    from .reflect import ReflectService
-    from .registry import RegistryService
+    from .logger import Exporter, LoggerService, LoggerServiceView
+    from .reflect import AccessorProperty, ReflectServiceView
+    from .registry import RegistryServiceView
 
 
 class Context:
     """Root or derived view over a Cordis runtime."""
+
+    filter = object()
 
     def __init__(self) -> None:
         from .events import EventsService
@@ -28,31 +30,56 @@ class Context:
         from .registry import RegistryService
 
         self.root = self
+        self.baseUrl: str | None = None
+        self._metadata: dict[object, object] = {}
         self.isolation: dict[str, object] = {}
         self.intercepts: dict[str, list[object]] = {}
         self.fiber: Fiber | RootFiber = RootFiber(self)
-        self.registry: RegistryService = RegistryService(self)
-        self.reflect: ReflectService = ReflectService(self)
-        self.events: EventsService = EventsService(self)
-        self.logger: LoggerService = LoggerService(self)
+        registry = RegistryService(self)
+        reflect = ReflectService(self)
+        events = EventsService(self)
+        self.registry: RegistryServiceView = registry.for_context(self)
+        self.reflect: ReflectServiceView = reflect.for_context(self)
+        self.events: EventsServiceView = events.for_context(self)
+        self.logger: LoggerService | LoggerServiceView = LoggerService(self)
 
     @classmethod
     def derive(cls, parent: Context, fiber: Fiber | None = None) -> Context:
         context = object.__new__(cls)
+        context.__dict__ = parent.__dict__.copy()
         context.root = parent.root
+        context._metadata = dict(parent._metadata)
         context.isolation = dict(parent.isolation)
         context.intercepts = {name: list(values) for name, values in parent.intercepts.items()}
         context.fiber = fiber or parent.fiber
-        context.registry = parent.root.registry
-        context.reflect = parent.root.reflect
-        context.events = parent.root.events
-        context.logger = parent.root.logger
+        context.registry = parent.root.registry.service.for_context(context)
+        context.reflect = parent.root.reflect.service.for_context(context)
+        context.events = parent.root.events.service.for_context(context)
+        context.logger = parent.root.logger.for_context(context)
         return context
 
-    def extend(self) -> Context:
+    def extend(self, meta: Mapping[object, object] | None = None) -> Context:
         """Create a child Context that shares the current scope."""
 
-        return self.derive(self)
+        context = self.derive(self)
+        if meta is not None:
+            for name, value in meta.items():
+                if isinstance(name, str):
+                    setattr(context, name, value)
+                else:
+                    context._metadata[name] = value
+        return context
+
+    @staticmethod
+    def is_context(value: object) -> bool:
+        """Return whether *value* is a Cordis Context."""
+
+        return isinstance(value, Context)
+
+    def metadata(self, key: object) -> object | None:
+        """Read non-string metadata inherited through :meth:`extend`."""
+
+        return self._metadata.get(key)
 
     def isolate(self, name: str, label: object | None = None) -> Context:
         """Create a child Context with an independent service scope."""
@@ -71,36 +98,45 @@ class Context:
     def plugin(self, plugin: Plugin, config: object = None) -> Fiber:
         """Mount a plugin under this Context."""
 
-        return self.root.registry.plugin(self, plugin, config)
+        return self.registry.plugin(plugin, config)
 
-    def get(self, name: str) -> object:
+    def inject(self, dependencies: InjectSpec, callback: Plugin) -> Fiber:
+        """Mount a callback while all declared services are available."""
+
+        return self.registry.inject(dependencies, callback)
+
+    def get(self, name: str, strict: bool = True) -> object | None:
         """Resolve a service explicitly."""
 
         from .service import bind_service
 
         def resolve() -> object:
-            accessor = self.root.reflect.accessor_record(name)
+            accessor = self.reflect.accessor_record(name)
             if accessor is not None:
                 return accessor.getter(self)
-            implementation = self.fiber.dependencies.get(name)
-            if implementation is not None:
+            implementation = (self.fiber.store or {}).get(name)
+            if strict and implementation is not None:
                 return bind_service(implementation.value, self)
-            return bind_service(self.root.reflect.get(self, name), self)
+            return bind_service(self.reflect.get(name, strict), self)
 
-        return self.events.waterfall_sync("internal/get", self, name, next_=resolve)
+        error = RuntimeError(f'cannot get property "{name}" without inject')
+        return self.events.waterfall_sync("internal/get", self, name, error, next_=resolve)
 
-    def __getattr__(self, name: str) -> object:
+    def __getattr__(self, name: str) -> object | None:
         return self.get(name)
 
-    def set(self, name: str, value: object) -> None:
+    def set(self, name: str, value: object) -> bool:
         """Set a declared accessor or a service owned by this Fiber."""
 
-        self.events.waterfall_sync(
-            "internal/set",
-            self,
-            name,
-            value,
-            next_=lambda: self.root.reflect.set(self, name, value),
+        return bool(
+            self.events.waterfall_sync(
+                "internal/set",
+                self,
+                name,
+                value,
+                RuntimeError(f'cannot set property "{name}" without provide'),
+                next_=lambda: self.reflect.set(name, value),
+            )
         )
 
     def provide(
@@ -111,17 +147,16 @@ class Context:
     ) -> Effect:
         """Provide a service owned by the current Fiber."""
 
-        return self.root.reflect.provide(self, name, value, check)
+        return self.reflect.provide(name, value, check)
 
     def accessor(
         self,
         name: str,
-        getter: Callable[[Context], object],
-        setter: Callable[[Context, object], None] | None = None,
+        options: AccessorProperty,
     ) -> Effect:
         """Declare a computed Context property."""
 
-        return self.root.reflect.accessor(self, name, getter, setter)
+        return self.reflect.accessor(name, options)
 
     def mixin(
         self,
@@ -130,75 +165,66 @@ class Context:
     ) -> Effect:
         """Expose selected members of a service or object on Context."""
 
-        return self.root.reflect.mixin(self, source, members)
+        return self.reflect.mixin(source, members)
 
     def bind(self, callback: Callable[..., object]) -> Callable[..., object]:
         """Bind callback diagnostics to this Context."""
 
-        return self.root.reflect.bind(self, callback)
+        return self.reflect.bind(callback)
 
     def exporter(self, exporter: Exporter) -> Effect:
         """Register a lifecycle-owned log exporter."""
 
-        return self.logger.exporter(self, exporter)
+        return self.logger.exporter(exporter)
 
     def effect(self, setup: EffectSetup, label: str = "anonymous") -> Effect:
-        """Install a synchronous-setup Effect on the current Fiber."""
+        """Install a callable, awaitable Effect disposer on the current Fiber."""
 
-        return self.fiber.effects.install_sync(setup, label)
-
-    async def effect_async(self, setup: EffectSetup, label: str = "anonymous") -> Effect:
-        """Install an Effect whose setup may be asynchronous."""
-
-        return await self.fiber.effects.install(setup, label)
+        return self.fiber.effects.install_auto(setup, label)
 
     def on(
         self,
-        name: str,
+        name: object,
         listener: Listener,
-        *,
-        prepend: bool = False,
-        global_: bool = False,
-    ) -> Effect:
+        options: bool | EventOptions | None = None,
+    ) -> ListenerDisposer:
         """Register a lifecycle-owned event listener."""
 
-        return self.events.on(self, name, listener, prepend=prepend, global_=global_)
+        return self.events.on(name, listener, options)
 
     def once(
         self,
-        name: str,
+        name: object,
         listener: Listener,
-        *,
-        prepend: bool = False,
-        global_: bool = False,
-    ) -> Effect:
+        options: bool | EventOptions | None = None,
+    ) -> ListenerDisposer:
         """Register a lifecycle-owned one-shot listener."""
 
-        return self.events.once(self, name, listener, prepend=prepend, global_=global_)
+        return self.events.once(name, listener, options)
 
-    def emit(self, name: str, *args: object) -> None:
+    def emit(self, name: object, *args: object) -> None:
         """Synchronously notify all event listeners."""
 
         self.events.emit(name, *args)
 
-    def bail(self, name: str, *args: object) -> object:
+    def bail(self, name: object, *args: object) -> object:
         """Return the first synchronous bail value."""
 
         return self.events.bail(name, *args)
 
-    async def serial(self, name: str, *args: object) -> object:
+    async def serial(self, name: object, *args: object) -> object:
         """Await listeners in order until one returns a bail value."""
 
         return await self.events.serial(name, *args)
 
-    async def parallel(self, name: str, *args: object) -> None:
+    async def parallel(self, name: object, *args: object) -> None:
         """Run listeners concurrently and wait for completion."""
 
         await self.events.parallel(name, *args)
 
     async def waterfall(
         self,
-        name: str,
+        name: object,
         *args: object,
         next_: Listener,
     ) -> object:

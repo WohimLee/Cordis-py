@@ -66,7 +66,7 @@ Python 实现应按行为场景对照，而不是逐行翻译：
 - dispatch 是否产生相同监听顺序和结果；
 - update、failure 和 disposal 是否达到相同最终状态。
 
-JavaScript Proxy、Symbol、prototype 和 thenable 等语言机制不属于行为兼容目标。
+JavaScript Proxy、Symbol、prototype 和 thenable 等机制不要求按实现方式复制；它们承载的公开 API 和可观察能力仍属于 Core 对等目标，无法直接表达的部分必须登记 Python 等价形式并通过行为对照。
 
 ## 架构事实来源
 

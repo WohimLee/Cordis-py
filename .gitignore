@@ -1,12 +1,37 @@
-.venv/
-dist/
-build/
-*.egg-info/
+# Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+
+# Tests, coverage, linting, and type checking
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 .pyright/
 .coverage
+.coverage.*
 htmlcov/
+
+# Virtual environments and package tooling
+.venv/
+.uv-cache/
+
+# Build artifacts
+build/
+dist/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+
+# Files
+debug.md
+
+
+# Folders

@@ -1,0 +1,7 @@
+{
+  "id": "fiber-dependency-races",
+  "expected": {
+    "loss": {"state": "PENDING", "cleanups": 1},
+    "restore": {"state": "ACTIVE", "activations": ["A", "B"]}
+  }
+}

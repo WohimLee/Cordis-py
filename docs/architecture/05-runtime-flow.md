@@ -5,12 +5,14 @@
 ## 示例插件
 
 ```python
-@inject("llm", "tools")
 def agent_loop(ctx, config):
     loop = AgentLoop(ctx.llm, ctx.tools)
     ctx.provide("agent_loop", loop)
     ctx.on("agent/run", loop.run)
     return loop.close
+
+
+agent_loop.inject = ["llm", "tools"]
 ```
 
 ## 挂载与激活

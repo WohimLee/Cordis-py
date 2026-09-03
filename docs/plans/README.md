@@ -9,6 +9,9 @@ Plans translate the architecture into bounded implementation phases. Execute the
 | [02 Complete core](02-complete-core.md) | Complete reflection, config, logger and races | Complete |
 | [03 Configuration runtime](03-configuration-runtime.md) | Build Loader, Include, Group and HMR | Complete |
 | [04 Harness compatibility](04-harness-compatibility.md) | Validate representative DSH composition | Complete |
+| [05 Cordis Core equivalence](05-cordis-core-equivalence.md) | Align concepts, public API and observable behavior with vendored Cordis | Complete |
+
+Plan 05 progress is measured by the [Cordis Core compatibility matrix](../cordis-core-compatibility.md).
 
 ## Plan format
 

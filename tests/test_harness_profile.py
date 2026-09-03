@@ -54,13 +54,13 @@ async def test_keyless_harness_profile_and_provider_reload(tmp_path: Path) -> No
     actual["shutdown"] = {
         "registry_size": context.registry.size,
         "services": len(context.reflect.implementations()),
-        "root_effects": len(context.fiber.get_effects()),
+        "root_effects": len(context.fiber.getEffects()),
     }
     scenario = json.loads((SCENARIOS / "002-harness-adapter-reload.json").read_text())
     assert actual == scenario["expected"]
     assert context.reflect.implementations() == ()
     assert context.registry.size == 0
-    assert context.fiber.get_effects() == ()
+    assert context.fiber.getEffects() == ()
 
 
 @pytest.mark.asyncio

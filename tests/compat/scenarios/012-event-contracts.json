@@ -1,0 +1,15 @@
+{
+  "id": "event-contracts",
+  "expected": {
+    "order": ["prepend", "normal", "once", "emit-async"],
+    "modes": ["emit", "emit", "emit", "emit", "bail", "serial", "emit", "waterfall"],
+    "first_dispose": [null, null],
+    "once_after_emit": null,
+    "replacement_options": [{"prepend": true, "global": false}],
+    "replacement_dispose": [true, false],
+    "bail_result": "async-bail",
+    "serial_result": "serial",
+    "parallel_errors": 1,
+    "waterfall_result": "outer(inner)"
+  }
+}

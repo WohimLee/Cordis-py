@@ -1,0 +1,13 @@
+{
+  "id": "effect-contracts",
+  "expected": {
+    "awaited_callable": true,
+    "shared_disposal": true,
+    "trace": ["second", "first"],
+    "invalid_error": "Invalid effect",
+    "live_effects": 0,
+    "async_trace": ["setup-start", "setup-end", "cleanup"],
+    "pending_before_release": true,
+    "metadata": ["parent", ["child"]]
+  }
+}

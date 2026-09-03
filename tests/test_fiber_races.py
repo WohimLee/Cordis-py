@@ -3,7 +3,7 @@ from typing import cast
 
 import pytest
 
-from cordis import Context, Service, inject
+from cordis import Context, Service
 from cordis.fiber import FiberState
 
 
@@ -24,7 +24,6 @@ async def test_dependency_loss_while_loading_rolls_back_once() -> None:
     release = asyncio.Event()
     cleanups = 0
 
-    @inject("value")
     async def consumer(plugin_context: Context, config: object) -> object:
         nonlocal cleanups
         assert cast(ValueService, plugin_context.value).value == "first"
@@ -37,6 +36,7 @@ async def test_dependency_loss_while_loading_rolls_back_once() -> None:
 
         return cleanup
 
+    consumer.inject = ["value"]  # type: ignore[attr-defined]
     fiber = context.plugin(consumer)
     await started.wait()
     dispose_task = asyncio.create_task(provider.dispose())
@@ -60,7 +60,6 @@ async def test_dependency_restoration_while_unloading_reactivates() -> None:
     release_cleanup = asyncio.Event()
     activations: list[object] = []
 
-    @inject("value")
     def consumer(plugin_context: Context, config: object) -> object:
         activations.append(cast(ValueService, plugin_context.value).value)
 
@@ -70,6 +69,7 @@ async def test_dependency_restoration_while_unloading_reactivates() -> None:
 
         return cleanup
 
+    consumer.inject = ["value"]  # type: ignore[attr-defined]
     fiber = context.plugin(consumer)
     await fiber.wait()
     dispose_task = asyncio.create_task(provider.dispose())
@@ -108,3 +108,29 @@ async def test_root_close_waits_for_loading_plugin_and_cleans_it() -> None:
 
     assert cleaned.is_set()
     assert fiber.state is FiberState.DISPOSED
+
+
+@pytest.mark.asyncio
+async def test_cleanup_failure_still_removes_disposed_fiber() -> None:
+    context = Context()
+    cleaned = False
+
+    def plugin(plugin_context: Context, config: object) -> object:
+        def cleanup() -> None:
+            nonlocal cleaned
+            cleaned = True
+            raise ValueError("cleanup failed")
+
+        return cleanup
+
+    fiber = context.plugin(plugin)
+    await fiber.wait()
+
+    with pytest.raises(BaseExceptionGroup):
+        await fiber.dispose()
+
+    assert cleaned is True
+    assert fiber.uid is None
+    assert fiber.state is FiberState.DISPOSED
+    assert not context.registry.has(plugin)
+    await context.aclose()

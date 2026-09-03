@@ -1,0 +1,9 @@
+{
+  "id": "strict-get",
+  "purpose": "Compare strict and loose service lookup while the providing Fiber is still loading.",
+  "expected": {
+    "during_loading_strict": null,
+    "during_loading_loose": "loading",
+    "after_loading_strict": "loading"
+  }
+}

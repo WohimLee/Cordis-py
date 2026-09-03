@@ -1,0 +1,15 @@
+{
+  "id": "core-smoke",
+  "purpose": "Exercise the same basic plugin, event, effect cleanup and disposal sequence in Cordis and Cordis-py.",
+  "steps": [
+    {"action": "mount", "plugin": "probe"},
+    {"action": "emit", "event": "probe", "value": "value"},
+    {"action": "dispose", "plugin": "probe"},
+    {"action": "emit", "event": "probe", "value": "after-dispose"},
+    {"action": "dispose-root"}
+  ],
+  "expected": {
+    "trace": ["activate", "event:value", "cleanup"],
+    "fiber_state": "DISPOSED"
+  }
+}

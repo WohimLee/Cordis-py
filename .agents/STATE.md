@@ -1,74 +1,37 @@
 # Current State
 
-Updated: 2026-08-26
+Updated: 2026-09-03
 
 ## Project phase
 
-All planned phases are complete.
+Phases 0 through 5 are complete.
 
 ## Active plan
 
-[Plan 04: Harness Compatibility](../docs/plans/04-harness-compatibility.md) (complete)
-
-## Current task
-
-No active implementation task. Select a post-roadmap enhancement before expanding scope.
+[Plan 05: Cordis Core Equivalence](../docs/plans/05-cordis-core-equivalence.md) (complete)
 
 ## Completed
 
-- [x] Reviewed the vendored Cordis core at an architectural level.
-- [x] Wrote and logically ordered the architecture documentation.
-- [x] Incorporated the explanatory material from `docs/draft.md`.
-- [x] Defined roadmap, implementation plans, ADR convention and agent workflow.
-- [x] Resolve Plan 00 decisions.
-- [x] Scaffold the Python package and verification toolchain.
-- [x] Define the first cross-language provider-replacement scenario.
-- [x] Begin semantic core implementation.
-- [x] Implement Phase 1 Context, Registry, Reflect, Fiber, Effect and Events.
-- [x] Execute the Provider replacement scenario from JSON expectations.
-- [x] Complete Reflect accessors, mixins, ownership checks and callback binding.
-- [x] Complete Service intercepts and dynamic availability refresh.
-- [x] Complete validation, restart and update waterfall behavior.
-- [x] Complete internal lifecycle events, logging and runtime diagnostics.
-- [x] Harden dependency and shutdown lifecycle races.
-- [x] Define immutable parsed Loader entries and mutable runtime Entry state.
-- [x] Implement source-aware TOML parsing and restricted environment interpolation.
-- [x] Implement allow-listed package/path `module:attribute` resolution.
-- [x] Implement relative include expansion and canonical-path cycle detection.
-- [x] Implement recursive config/inject overlays addressed by globally stable entry id.
-- [x] Preserve included entry source ownership for errors and relative module resolution.
-- [x] Mount root and nested entries exclusively through `Context.plugin()`.
-- [x] Merge declarative inject metadata without adding a second dependency scheduler.
-- [x] Roll back plugin effects and child Fibers when tree mounting fails.
-- [x] Reuse existing Fibers for config-only Loader updates.
-- [x] Roll back earlier entry updates when a later config update fails.
-- [x] Reject structural changes without disturbing the active runtime.
-- [x] Preflight structural replacements without importing modules twice.
-- [x] Replace changed trees through normal Fiber disposal and mounting.
-- [x] Restore the previous valid tree when replacement activation fails.
-- [x] Add a thin safe-YAML frontend over the format-neutral parser.
-- [x] Support mixed YAML/TOML include graphs.
-- [x] Verify Python-specific YAML tags cannot execute code.
-- [x] Add host-driven configuration reload through Loader transactions.
-- [x] Inventory the current DSH LLM, tools, sessions, agents and agent-loop seams.
-- [x] Build a keyless Harness-shaped service profile and YAML configuration.
-- [x] Verify provider reload preserves the stable LLM service and Agent Loop Fiber.
-- [x] Verify profile shutdown leaves no registry, service or root Effect state.
-- [x] Execute language-neutral adapter reload and LLM service-loss scenarios.
-- [x] Publish the compatibility matrix and provider-plugin tutorial.
+- [x] Implemented the lifecycle-correct Context, Registry, Reflect, Fiber, Effect, Events, Service and Logger core.
+- [x] Implemented the Loader transaction runtime and representative keyless Harness profile.
+- [x] Classified every vendored Cordis Core 4.0.2 public contract and documented each Python language difference.
+- [x] Aligned canonical portable concepts, names, signatures, errors and lifecycle behavior.
+- [x] Added Context-bound Events, Reflect, Registry and Logger service facades without duplicating backing services.
+- [x] Made Fiber directly awaitable and matched validation, Effect metadata, service availability and Registry deletion contracts.
+- [x] Removed redundant compatibility aliases and kept function-plugin dependency metadata in canonical `.inject` form.
+- [x] Moved project-specific call-chain observation into the separate 27-line `cordis_observer` package.
+- [x] Matched all 21 paired Cordis 4.0.2/Python scenarios (`004` through `024`) exactly after normalization.
+- [x] Reviewed final Core size: 2,686 Python lines versus the 1,794-line baseline and 2,693-line TypeScript reference.
 
 ## Verification
 
-- Documentation formatting: `git diff --check` passed.
-- Relative Markdown links: repository link check passed.
-- `uv sync --dev`: passed; lock file generated.
 - `uv run ruff check .`: passed.
-- `uv run ruff format --check .`: passed.
-- `uv run pyright`: passed with zero errors.
-- `uv run pytest`: passed, 57 tests.
+- `uv run ruff format --check .`: passed (81 files).
+- `uv run pyright`: passed with zero errors and warnings.
+- `uv run pytest`: passed, 76 tests.
 - `uv build`: passed for sdist and wheel.
-- Cross-language scenario JSON syntax: passed.
-- Phase 2 runtime, diagnostics and lifecycle race tests: passed.
+- `git diff --check`: passed.
+- Twenty-one paired TypeScript/Python Core scenarios: exact normalized matches.
 
 ## Blockers
 
@@ -76,16 +39,17 @@ None.
 
 ## Next action
 
-Choose whether to add a real Qwen provider smoke test as an optional example, not a core requirement.
+No planned implementation remains. The working tree is ready for review and a user-controlled commit/release.
 
 ## Resolved decisions
 
-- Python 3.11+ with Python 3.12 as the local development version;
-- uv, hatchling, pytest, pytest-asyncio, Ruff and Pyright strict;
-- async-first lifecycle;
-- dynamic and explicit Context service access;
-- no initial `Fiber.__await__`.
+- Python 3.11+ with Python 3.12 for local development;
+- async-first, dynamically injected lifecycle semantics;
+- vendored Cordis Core 4.0.2 behavior as the compatibility reference;
+- `await fiber`/`fiber.wait()`, `Context.is_context()` and `global_` as keyword-safe Python spellings;
+- one scheduler, service store, event bus and Effect implementation per capability;
+- Python-only Loader, typing helpers and observer remain explicitly outside the equivalence claim.
 
 ## Working tree scope
 
-Phases 0 through 4 are complete. Cordis core, Loader, keyless Harness profile, compatibility scenarios and guidance are implemented.
+Phases 0 through 5 are complete; the current uncommitted changes comprise the documented Cordis Core equivalence implementation and verification artifacts.

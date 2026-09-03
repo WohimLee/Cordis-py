@@ -1,0 +1,9 @@
+{
+  "id": "accessor-mixin",
+  "expected": {
+    "values": [1, true, 3],
+    "rejected": false,
+    "mixed": [2, 3, 3],
+    "after_dispose": [null, null]
+  }
+}

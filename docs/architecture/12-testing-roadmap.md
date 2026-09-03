@@ -27,7 +27,7 @@
 
 ## 跨语言行为测试
 
-从 vendored Cordis 提取语言无关场景，为 TypeScript 和 Python 使用相同期望：
+从 vendored Cordis 提取语言无关场景，由 TypeScript reference runner 和 Python runner 执行相同输入，再比较规范化输出：
 
 - 插件激活顺序；
 - 依赖消失与恢复；
@@ -37,7 +37,9 @@
 - update/restart 行为；
 - 失败后的最终状态。
 
-不比较对象布局，只比较公开结果、状态和事件序列。
+除这些生命周期主干外，对照必须覆盖 Context、Registry、Effect、Events、Reflect、Service 和 Logger 的每个公开可移植契约。不能仅在 Python 测试中手写预期并将其称为跨语言兼容。
+
+不比较对象布局，只比较公开结果、返回契约、异常、状态和事件序列。每个未对照项必须在兼容矩阵中保持未完成状态。
 
 ## 实施阶段
 
@@ -57,6 +59,10 @@
 
 选择 DeepSeek Harness 的真实插件组合，以 Python 重写对应服务接口，并建立跨语言行为测试和示例应用。
 
+### 阶段 E：Cordis Core 对等收敛
+
+以 vendored `@deepseek-ai/cordis` 4.0.2 为固定参考，建立完整 API/行为矩阵和 TypeScript oracle，补齐公开契约，登记不可避免的 Python 差异，并删除早期实现中被取代的命名和抽象。
+
 ## 架构验收标准
 
 1. 插件加载顺序不影响声明依赖后的最终结果；
@@ -68,6 +74,8 @@
 7. 竞态下不会重复激活、泄漏 Effect 或从 DISPOSED 复活；
 8. 配置验证失败不留下部分服务和监听器；
 9. Loader 不替代核心依赖调度；
-10. 关键行为具有与 TypeScript Cordis 对照的场景测试。
+10. 关键行为具有由 TypeScript Cordis 实际执行的对照场景测试；
+11. 每个 Cordis Core 公开项都有 exact、equivalent、language-specific、missing 或 extension 分类；
+12. 不存在未解释的 API/能力差异或重复兼容实现。
 
-达到阶段 A 是“小而可用的 Python Cordis”；达到阶段 B 才是完整核心；阶段 C 和 D 属于 DeepSeek Harness 级完整运行时。
+达到阶段 A 是“小而可用的 Python Cordis”；阶段 B 表示功能完整的早期核心，不再表示与上游完全对等；只有阶段 E 的矩阵和双语言验收全部通过后，才能声明 Cordis Core 等价。阶段 C 和 D 不属于 Cordis Core 对等范围。

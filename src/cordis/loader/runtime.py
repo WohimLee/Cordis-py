@@ -32,7 +32,7 @@ class _EntryPlugin:
         if inspect.isawaitable(result):
             result = await cast(Awaitable[object], result)
         if result is not None:
-            await context.effect_async(
+            await context.effect(
                 lambda: result,
                 f"loader.plugin({self.entry.id!r})",
             )

@@ -1,0 +1,12 @@
+{
+  "id": "disposable-list",
+  "expected": {
+    "before": ["a", "b", "a"],
+    "deleted": true,
+    "after_delete": ["a", "b"],
+    "disposed": true,
+    "cleared": ["b"],
+    "length": 0,
+    "stale_disposer": false
+  }
+}

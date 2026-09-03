@@ -1,0 +1,12 @@
+{
+  "id": "inject-delete",
+  "purpose": "Compare ctx.inject dependency activation and Registry.delete disposal semantics.",
+  "expected": {
+    "initial_state": "PENDING",
+    "active_state": "ACTIVE",
+    "trace": ["activate:ready", "cleanup"],
+    "delete_returned_runtime": true,
+    "has_after_delete": false,
+    "registry_size_after": 1
+  }
+}

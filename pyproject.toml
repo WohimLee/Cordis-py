@@ -22,7 +22,7 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cordis"]
+packages = ["src/cordis", "src/cordis_observer"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

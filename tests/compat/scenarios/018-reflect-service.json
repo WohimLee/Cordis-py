@@ -1,0 +1,12 @@
+{
+  "id": "reflect-service",
+  "expected": {
+    "call": "consumer",
+    "config": {"count": 3},
+    "derived_extra": true,
+    "scope": ["scoped", null],
+    "service_events": ["root", 0],
+    "set_result": true,
+    "trace": ["init", "cleanup"]
+  }
+}

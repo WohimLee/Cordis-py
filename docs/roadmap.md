@@ -105,6 +105,26 @@ Exit criteria:
 - known deviations are explicit and tested;
 - project documentation supports a new contributor implementing a plugin.
 
+## Phase 5: Cordis Core equivalence
+
+Goal: align Cordis-py with the concepts, public API and observable behavior of vendored `@deepseek-ai/cordis` 4.0.2, except for explicit Python language differences.
+
+Deliverables:
+
+- source-checked Cordis Core API and behavior matrix;
+- paired TypeScript/Python behavior runner and scenarios;
+- aligned Context, Registry, Fiber, Effect, Events, Reflect, Service and Logger contracts;
+- documented Python spellings for APIs blocked by language syntax;
+- removal of redundant pre-equivalence abstractions and aliases.
+
+Exit criteria:
+
+- every Cordis Core public API is classified and evidenced;
+- exact and equivalent items pass their cross-language contract tests;
+- no unexplained capability difference remains;
+- no compatibility work introduces a second runtime mechanism;
+- source growth and all retained compatibility scaffolding pass a redundancy review.
+
 ## Phase status
 
 | Phase | Status | Plan |
@@ -114,3 +134,4 @@ Exit criteria:
 | 2. Complete core | Complete | [02-complete-core.md](plans/02-complete-core.md) |
 | 3. Configuration runtime | Complete | [03-configuration-runtime.md](plans/03-configuration-runtime.md) |
 | 4. Harness compatibility | Complete | [04-harness-compatibility.md](plans/04-harness-compatibility.md) |
+| 5. Cordis Core equivalence | Complete | [05-cordis-core-equivalence.md](plans/05-cordis-core-equivalence.md) |
