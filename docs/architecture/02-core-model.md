@@ -169,6 +169,41 @@ Root Fiber                       Root Context
 
 Fiber 树决定谁负责卸载谁。Context 派生结构决定插件从哪个作用域解析服务以及继承哪些 metadata、isolation label 和 intercept 配置。两者不严格同构：每个 Fiber 有一个主要 Plugin Context，但 `extend()`、`isolate()` 和 `intercept()` 可以在不创建 Fiber 的情况下继续派生 Context；这些派生 Context 仍指向原 Fiber。只有再次调用 `ctx.plugin()` 才会创建 Child Fiber 及其主要 Plugin Context。
 
+### Context 派生形式
+
+`Context.derive()` 是 Python 实现内部使用的统一构造原语。公开的 `extend()`、`isolate()` 和 `intercept()` 都先派生 Context，再修改各自负责的数据；`plugin()` 则由 Registry 创建新 Fiber，并为该 Fiber 派生主要 Plugin Context。
+
+| 操作 | 新 Context | 新 Fiber | metadata | Service scope | Service intercept config |
+| --- | --- | --- | --- | --- | --- |
+| `Context.derive(parent, fiber=None)` | 是 | 否 | 复制 | 复制 | 复制 |
+| `ctx.extend(meta)` | 是 | 否 | 继承并增加或覆盖 | 不变 | 不变 |
+| `ctx.isolate(name, label=None)` | 是 | 否 | 继承 | 为指定 Service 选择新 label | 不变 |
+| `ctx.intercept(name, config)` | 是 | 否 | 继承 | 不变 | 为指定 Service 追加一层配置 |
+| `ctx.plugin(plugin, config)` | 是 | 是 | 继承 | 继承 | 继承，并应用 Plugin Inject 中的配置 |
+
+`derive(parent, fiber=existing_fiber)` 可以显式替换新 Context 的 `fiber` 引用，但它本身不创建 Fiber。普通 Context 派生沿用 `parent.fiber`；`Registry.plugin()` 先创建 Fiber，再把该 Fiber 传给 `derive()`。因此“创建新 Context”和“创建新生命周期实例”是两个独立动作。
+
+```text
+ctx.extend()       ──▶ 新 Context，原 Fiber，附加 metadata
+ctx.isolate()      ──▶ 新 Context，原 Fiber，切换 Service label
+ctx.intercept()    ──▶ 新 Context，原 Fiber，追加 Service config
+ctx.plugin()       ──▶ 新 Fiber + 新 Plugin Context
+```
+
+`Service.extend()` 不属于 Context 派生：
+
+```text
+Context.derive / extend / isolate / intercept
+└──创建新的 Context 视图
+
+Service.extend
+└──创建未重新注册的 Service facade
+    ├──共享原 Service 状态
+    └──可以附加或覆盖 facade 属性
+```
+
+`Service.extend()` 不创建 Context、Fiber、Service implementation 或新的 isolation scope。它只派生调用者看到的 Service facade；原 Service 的注册记录和 owner Fiber 保持不变。
+
 关键引用关系如下：
 
 ```text
